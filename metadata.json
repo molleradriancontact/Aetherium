@@ -1,0 +1,5 @@
+{
+  "name": "Workspace Structure Generator",
+  "description": "An application to generate organized workspace structures for research and game development projects, providing a clear folder hierarchy and key project management principles.",
+  "requestFramePermissions": []
+}
