@@ -59,17 +59,12 @@ export function FileUpload() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
-    // If a project is already loaded, we clear it to start a new one.
-    // This will be a new project, so we clear the UI to reflect that.
-    if (projectId) {
-      clearState();
-      setFiles([]);
-    }
+    // Each new upload will start a fresh file list for the new analysis.
     const newFiles = acceptedFiles.filter(
         (file) => !files.some((prevFile) => prevFile.path === file.path)
     );
     setFiles((prevFiles) => [...prevFiles, ...newFiles]);
-  }, [files, projectId, clearState]);
+  }, [files]);
 
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
@@ -82,10 +77,6 @@ export function FileUpload() {
 
   const handleClear = () => {
     setFiles([]);
-    // Clearing the files should also clear the project context if one is loaded.
-    if (projectId) {
-      clearState();
-    }
   }
 
   const handleAnalyze = async () => {
