@@ -6,7 +6,7 @@
  * - SuggestBackendModificationsInput - The input type for the suggestBackendModifications function.
  * - SuggestBackendModificationsOutput - The output type for the suggestBackendModifications function.
  */
-
+import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 

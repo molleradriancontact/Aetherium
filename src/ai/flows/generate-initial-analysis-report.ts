@@ -8,7 +8,7 @@
  * - GenerateInitialAnalysisReportInput - The input type for the generateInitialAnalysisReport function.
  * - GenerateInitialAnalysisReportOutput - The return type for the generateInitialAnalysisReport function.
  */
-
+import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 

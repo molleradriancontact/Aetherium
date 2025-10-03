@@ -8,7 +8,7 @@
  * - GenerateProjectNameInput - The input type for the generateProjectName function.
  * - GenerateProjectNameOutput - The return type for the generateProjectName function.
  */
-
+import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 

@@ -6,7 +6,7 @@
  * - SuggestBackendChangesFromAnalysisInput - The input type for the suggestBackendChangesFromAnalysis function.
  * - SuggestBackendChangesFromAnalysisOutput - The output type for the suggestBackendChangesFromAnalysis function.
  */
-
+import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
