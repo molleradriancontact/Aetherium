@@ -40,13 +40,17 @@ export function FileUpload() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
     onDrop,
     getFilesFromEvent: async event => {
-        const files = Array.from(event.target.files);
-        return files as FileWithPath[];
+        const files = Array.from(event.target.files as FileList);
+        return files.map(file => {
+          const fileWithPath = file as FileWithPath;
+          fileWithPath.path = file.webkitRelativePath || file.name;
+          return fileWithPath;
+        });
     }
   });
 
   const fileList = useMemo(() => files.map(file => (
-    <li key={file.path} className="text-sm text-muted-foreground">
+    <li key={`${file.path}-${file.size}`} className="text-sm text-muted-foreground">
       {file.path}
     </li>
   )), [files]);
@@ -65,7 +69,7 @@ export function FileUpload() {
     setIsLoading(true);
     clearState(false);
     
-    function createTree(files: { path: string }[]): string {
+    const createTree = (files: { path: string }[]): string => {
         const root: any = {};
         for (const file of files) {
           const path = file.path;
@@ -146,7 +150,7 @@ export function FileUpload() {
           {...getRootProps()}
           className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'}`}
         >
-          <input {...getInputProps()} />
+          <input {...getInputProps()} webkitdirectory="" directory="" />
           <div className="text-center">
             <FileUp className="mx-auto h-12 w-12 text-muted-foreground" />
             <p className="mt-2 text-foreground">
