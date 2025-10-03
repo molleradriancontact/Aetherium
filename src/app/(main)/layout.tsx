@@ -24,9 +24,7 @@ import {
   LogOut,
   FlaskConical,
   Library,
-  Briefcase,
   Beaker,
-  MessageSquare,
   User,
   Users,
 } from 'lucide-react';
@@ -39,8 +37,6 @@ import { Loader2 } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'The Lab', icon: Beaker },
-  { href: '/chats', label: 'Chats', icon: MessageSquare },
-  { href: '/projects', label: 'Projects', icon: Briefcase },
   { href: '/analysis', label: 'Analysis Report', icon: FileText },
   { href: '/frontend', label: 'Frontend', icon: Code },
   { href: '/backend', label: 'Backend', icon: Database },
