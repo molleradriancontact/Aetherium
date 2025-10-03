@@ -140,6 +140,7 @@ export default function SignUpPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={isGoogleLoading || isLoading}
+                autoComplete="username"
               />
             </div>
             <div className="grid gap-2">
@@ -152,6 +153,7 @@ export default function SignUpPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isGoogleLoading || isLoading}
+                autoComplete="email"
               />
             </div>
             <div className="grid gap-2">
@@ -163,6 +165,7 @@ export default function SignUpPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isGoogleLoading || isLoading}
+                autoComplete="new-password"
               />
             </div>
             <div className="grid gap-2">
@@ -174,6 +177,7 @@ export default function SignUpPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={isGoogleLoading || isLoading}
+                autoComplete="new-password"
               />
             </div>
           </CardContent>

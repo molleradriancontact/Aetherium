@@ -152,6 +152,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isGoogleLoading || isLoading}
+                autoComplete="email"
               />
             </div>
             <div className="grid gap-2">
@@ -163,6 +164,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isGoogleLoading || isLoading}
+                autoComplete="current-password"
               />
             </div>
           </CardContent>

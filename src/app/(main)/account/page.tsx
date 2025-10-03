@@ -154,6 +154,7 @@ export default function AccountPage() {
                                         {...field} 
                                         className="max-w-sm"
                                         disabled={isSubmitting}
+                                        autoComplete="username"
                                     />
                                 )}
                             />
@@ -169,3 +170,5 @@ export default function AccountPage() {
         </div>
     );
 }
+
+    
