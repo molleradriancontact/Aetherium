@@ -4,8 +4,6 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAdminApp, getAdminAuth } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
-import { arrayUnion, arrayRemove, doc, getDoc, updateDoc } from 'firebase/firestore';
-
 
 type GeneratedFile = {
     path: string;
