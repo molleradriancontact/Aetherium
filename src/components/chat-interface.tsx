@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Bot, User } from 'lucide-react';
+import { Loader2, Bot, User, Copy, CopyCheck } from 'lucide-react';
 import { chat } from '@/ai/flows/chat';
 import type { Message } from '@/ai/flows/schemas';
 import { useFirebase } from '@/firebase';
@@ -17,6 +17,7 @@ export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const { user } = useFirebase();
@@ -24,13 +25,17 @@ export function ChatInterface() {
   const { startAnalysis } = useAppState();
 
   const scrollToBottom = () => {
-    setTimeout(() => {
-        scrollAreaRef.current?.scrollTo({
+    if (scrollAreaRef.current) {
+        scrollAreaRef.current.scrollTo({
             top: scrollAreaRef.current.scrollHeight,
             behavior: 'smooth'
         });
-    }, 100);
+    }
   };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
   
   const handleSaveDocument = async (text: string) => {
     if (!user) {
@@ -62,7 +67,6 @@ export function ChatInterface() {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-    scrollToBottom();
 
     try {
       const result = await chat([...messages, userMessage]);
@@ -79,28 +83,56 @@ export function ChatInterface() {
       setMessages(prev => [...prev, { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` }]);
     } finally {
       setIsLoading(false);
-      scrollToBottom();
     }
   };
 
+  const handleCopyMessage = (content: string, index: number) => {
+    navigator.clipboard.writeText(content);
+    setCopiedMessageId(index);
+    toast({ title: "Copied to clipboard!" });
+    setTimeout(() => setCopiedMessageId(null), 2000);
+  }
+
+  const handleCopyChat = () => {
+    const chatHistory = messages.map(m => `${m.role === 'user' ? 'You' : 'AI'}: ${m.content}`).join('\n\n');
+    navigator.clipboard.writeText(chatHistory);
+    toast({ title: "Chat history copied!" });
+  }
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>AI Assistant</CardTitle>
-        <CardDescription>
-          Chat with the AI or paste text to create a new document for analysis.
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+            <CardTitle>AI Assistant</CardTitle>
+            <CardDescription>
+            Chat with the AI or paste text to create a new document for analysis.
+            </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleCopyChat} disabled={messages.length === 0}>
+            <Copy className="h-4 w-4 mr-2" />
+            Copy Chat
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <ScrollArea className="h-96 w-full rounded-md border p-4" ref={scrollAreaRef}>
           <div className="space-y-4">
             {messages.map((message, index) => (
-              <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
-                {message.role === 'model' && <Bot className="h-6 w-6 text-primary" />}
-                <div className={`rounded-lg p-3 text-sm ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+              <div key={index} className={`group/message flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
+                {message.role === 'model' && <Bot className="h-6 w-6 text-primary flex-shrink-0" />}
+                
+                <div className="relative rounded-lg p-3 text-sm bg-muted">
                   <pre className="whitespace-pre-wrap font-sans break-words">{message.content}</pre>
+                   <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover/message:opacity-100 transition-opacity"
+                    onClick={() => handleCopyMessage(message.content, index)}
+                  >
+                    {copiedMessageId === index ? <CopyCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  </Button>
                 </div>
-                {message.role === 'user' && <User className="h-6 w-6 text-muted-foreground" />}
+                
+                {message.role === 'user' && <User className="h-6 w-6 text-muted-foreground flex-shrink-0" />}
               </div>
             ))}
             {isLoading && (
