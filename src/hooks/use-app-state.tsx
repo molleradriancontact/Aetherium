@@ -21,8 +21,8 @@ export type AppState = {
   history: HistoryItem[];
   addHistory: (message: string) => void;
   clearState: (forceNav?: boolean) => void;
-  createProject: (name: string, files: UploadedFile[]) => Promise<string>;
   projectId: string | null;
+  setProjectId: (id: string | null) => void;
   uploadedFiles: UploadedFile[];
   setUploadedFiles: (files: UploadedFile[]) => void;
 };

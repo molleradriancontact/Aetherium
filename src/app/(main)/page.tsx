@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowRight, FileText, Code, Database, Loader2 } from "lucide-react";
 
-export default function DashboardPage() {
+export default function LabPage() {
   const { isHydrated, analysisReport, isLoading } = useAppState();
 
   if (!isHydrated || isLoading) {
@@ -23,7 +23,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <PageHeader 
-        title="Dashboard"
+        title="The Lab"
         subtitle="Upload your project files to begin the AI-powered analysis."
       />
       

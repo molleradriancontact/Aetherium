@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
-  LayoutDashboard,
   FileText,
   Code,
   Database,
@@ -25,17 +24,19 @@ import {
   LogOut,
   FlaskConical,
   Library,
+  Briefcase,
+  Beaker,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
 import { useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2 } from 'lucide-react';
 
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/', label: 'The Lab', icon: Beaker },
+  { href: '/projects', label: 'Projects', icon: Briefcase },
   { href: '/analysis', label: 'Analysis Report', icon: FileText },
   { href: '/frontend', label: 'Frontend', icon: Code },
   { href: '/backend', label: 'Backend', icon: Database },
