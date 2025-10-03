@@ -1,4 +1,3 @@
-
 'use client';
 
 import { PrototypingInterface } from "@/components/prototyping-interface";
@@ -35,8 +34,8 @@ export default function FrontendPage() {
             <CardDescription className="mt-2">
                 Frontend suggestions will appear here after a successful analysis.
             </CardDescription>
-            <Link href="/" >
-                <Button className="mt-6">Analyze Your Project</Button>
+            <Link href="/prototype" >
+                <Button className="mt-6">Analyze a Project</Button>
             </Link>
         </Card>
       )}
