@@ -35,7 +35,7 @@ const chatFlow = ai.defineFlow(
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-1.5-flash'),
       tools: [saveDocumentTool],
-      prompt: { messages },
+      prompt: messages,
       system: `You are a helpful AI assistant for the OS Architect application. 
       Your primary role is to communicate with the user and help them analyze their code or text.
       If the user provides a block of text and asks you to "save this" or "create a document from this",
