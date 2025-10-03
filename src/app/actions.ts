@@ -4,6 +4,7 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAdminApp, getAdminAuth } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
+import { initializeApp, getApps, App, deleteApp } from 'firebase-admin/app';
 
 type GeneratedFile = {
     path: string;
@@ -33,20 +34,26 @@ export async function deleteProject(userId: string, projectId: string) {
     if (!userId || !projectId) {
         throw new Error("User ID and Project ID are required.");
     }
-    const adminDb = getFirestore(getAdminApp());
+
+    // Initialize a temporary admin app for this action
+    const appName = `delete-project-${Date.now()}`;
+    const tempApp = getApps().find(app => app.name === appName) || initializeApp({}, appName);
+    const adminDb = getFirestore(tempApp);
 
     try {
         const projectDocRef = adminDb.collection('users').doc(userId).collection('projects').doc(projectId);
         await projectDocRef.delete();
         
         revalidatePath('/projects');
-        revalidatePath('/chats');
 
         return { success: true };
     } catch (error) {
         console.error("Failed to delete project:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         throw new Error(errorMessage);
+    } finally {
+        // Clean up the temporary app
+        await deleteApp(tempApp);
     }
 }
 
