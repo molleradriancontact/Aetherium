@@ -59,7 +59,7 @@ const generateProjectNameFlow = ai.defineFlow(
     outputSchema: GenerateProjectNameOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
+    const {output} = await prompt(input, { model: 'googleai/gemini-1.5-flash' });
     if (!output?.projectName) {
       throw new Error("The AI failed to generate a project name.");
     }
