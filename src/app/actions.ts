@@ -29,6 +29,9 @@ export async function analyzeFilesAction(input: AnalysisInput) {
     return {
       success: false,
       error: errorMessage,
+      report: undefined,
+      frontendSuggestions: undefined,
+      backendSuggestions: undefined,
     };
   }
 
@@ -59,5 +62,6 @@ export async function analyzeFilesAction(input: AnalysisInput) {
     report,
     frontendSuggestions,
     backendSuggestions,
+    error: null,
   };
 }

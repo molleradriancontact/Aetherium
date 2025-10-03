@@ -53,7 +53,7 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 };
 
 export function FileUpload() {
-  const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, clearState, createProject, projectId } = useAppState();
+  const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, createProject } = useAppState();
   const { toast } = useToast();
   const [files, setFiles] = useState<FileWithPath[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -90,7 +90,6 @@ export function FileUpload() {
 
     setIsProcessing(true);
     setIsLoading(true);
-    clearState(false);
     
     try {
         await createProject(`New Analysis - ${new Date().toLocaleString()}`);
@@ -117,30 +116,17 @@ export function FileUpload() {
         } else {
             addHistory(`Analysis failed: ${result.error}`);
             toast({ title: 'Analysis Failed', description: result.error, variant: 'destructive' });
-            clearState(); 
-            setFiles([]); 
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
         addHistory(`Operation failed: ${errorMessage}`);
         toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
-        clearState(); 
-        setFiles([]); 
     } finally {
         setIsLoading(false);
         setIsProcessing(false);
     }
   };
   
-  const inputProps = useMemo(() => {
-    const props = getInputProps();
-    const anyProps: any = { ...props };
-    anyProps.directory = "true";
-    anyProps.webkitdirectory = "true";
-    anyProps.mozdirectory = "true";
-    return anyProps;
-  }, [getInputProps]);
-
   return (
     <Card>
       <CardContent className="p-6">
@@ -148,7 +134,7 @@ export function FileUpload() {
           {...getRootProps()}
           className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'}`}
         >
-          <input {...inputProps} />
+          <input {...getInputProps()} />
           <div className="text-center">
             <FileUp className="mx-auto h-12 w-12 text-muted-foreground" />
             <p className="mt-2 text-foreground">
