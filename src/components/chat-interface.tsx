@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Bot, User, Copy, CopyCheck } from 'lucide-react';
+import { Loader2, Bot, User, Copy, CopyCheck, Trash2 } from 'lucide-react';
 import { chat } from '@/ai/flows/chat';
 import type { Message } from '@/ai/flows/schemas';
 import { useFirebase } from '@/firebase';
@@ -21,7 +21,7 @@ export function ChatInterface() {
 
   const { user } = useFirebase();
   const { toast } = useToast();
-  const { startAnalysis, projectId, projectType, chatHistory, startChat, addChatMessage, detailedStatus } = useAppState();
+  const { startAnalysis, projectId, projectType, chatHistory, startChat, addChatMessage, detailedStatus, clearState } = useAppState();
 
   const isChatProject = projectType === 'chat';
 
@@ -114,19 +114,30 @@ export function ChatInterface() {
     toast({ title: "Chat history copied!" });
   }
 
+  const handleClearChat = () => {
+    clearState(false);
+    toast({ title: "Chat cleared" });
+  }
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-start justify-between">
         <div>
             <CardTitle>AI Assistant</CardTitle>
             <CardDescription>
             Chat with the AI or paste text to create a new document for analysis.
             </CardDescription>
         </div>
-        <Button variant="outline" size="sm" onClick={handleCopyChat} disabled={messages.length === 0}>
-            <Copy className="h-4 w-4 mr-2" />
-            Copy Chat
-        </Button>
+        <div className='flex items-center gap-2'>
+            <Button variant="outline" size="sm" onClick={handleCopyChat} disabled={messages.length === 0}>
+                <Copy className="h-4 w-4 mr-2" />
+                Copy
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleClearChat} disabled={messages.length === 0}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear
+            </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <ScrollArea className="h-96 w-full rounded-md border" viewportRef={scrollAreaViewportRef}>
