@@ -12,7 +12,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('');
@@ -40,12 +41,14 @@ export default function SignUpPage() {
       if (user) {
         // Create a user document in Firestore
         const userRef = doc(firestore, 'users', user.uid);
-        await setDoc(userRef, {
+        const userData = {
           id: user.uid,
           email: user.email,
           username: user.email?.split('@')[0], // Use email prefix as username
           registrationDate: new Date().toISOString(),
-        });
+        };
+        // Use non-blocking write with error handling
+        setDocumentNonBlocking(userRef, userData, { merge: false });
       }
 
       router.push('/');
