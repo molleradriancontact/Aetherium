@@ -12,33 +12,35 @@ import { Card, CardContent } from './ui/card';
 import { ScrollArea } from './ui/scroll-area';
 
 function createTree(files: { path: string }[]): string {
-    const root: any = {};
-    for (const file of files) {
-        const path = file.path;
-        let current = root;
-        const parts = path.split('/');
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            if (!current[part]) {
-                current[part] = i === parts.length - 1 ? null : {};
-            }
-            current = current[part];
-        }
+  const root: any = {};
+  for (const file of files) {
+    const path = file.path;
+    let current = root;
+    const parts = path.split('/');
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (!current[part]) {
+        current[part] = i === parts.length - 1 ? null : {};
+      }
+      current = current[part];
     }
+  }
 
-    function formatTree(node: any, prefix = ''): string {
-        const entries = Object.entries(node);
-        let result = '';
-        entries.forEach(([key, value], index) => {
-            const isLast = index === entries.length - 1;
-            result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
-            if (value !== null) {
-                result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
-            }
-        });
-        return result;
-    }
-    return formatTree(root);
+  function formatTree(node: any, prefix = ''): string {
+    const entries = Object.entries(node);
+    let result = '';
+    entries.forEach(([key, value], index) => {
+      const isLast = index === entries.length - 1;
+      result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
+      if (value !== null) {
+        result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
+      }
+    });
+    return result;
+  }
+  // This is a simple representation; for a real webkitdirectory upload,
+  // you would get relative paths. We'll use the file names for this example.
+  return formatTree(root);
 }
 
 export function FileUpload() {
