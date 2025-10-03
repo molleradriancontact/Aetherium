@@ -1,15 +1,14 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Bot, User, FilePlus } from 'lucide-react';
+import { Loader2, Bot, User } from 'lucide-react';
 import { chat } from '@/ai/flows/chat';
 import type { Message } from '@/ai/flows/schemas';
-import { startAnalysisAction } from '@/app/actions';
 import { useFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useAppState } from '@/hooks/use-app-state';
@@ -22,7 +21,7 @@ export function ChatInterface() {
 
   const { user } = useFirebase();
   const { toast } = useToast();
-  const { setIsLoading: setAppIsLoading, clearState } = useAppState();
+  const { startAnalysis } = useAppState();
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -39,27 +38,20 @@ export function ChatInterface() {
       return;
     }
     
-    setAppIsLoading(true);
-    clearState(false);
+    setIsLoading(true);
     
     try {
-      const dataUrl = `data:text/plain;base64,${btoa(text)}`;
-      const result = await startAnalysisAction({
-        userId: user.uid,
-        files: [{ path: 'Pasted Text.txt', content: dataUrl }]
-      });
+      const dataUrl = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+      await startAnalysis([{ path: 'Pasted Text.txt', content: dataUrl }]);
 
-      if (result.success) {
-        toast({ title: 'Analysis Started', description: 'The document is being analyzed. You can see progress in the History page.' });
-        setMessages(prev => [...prev, { role: 'model', content: "I've started analyzing the document. You'll be redirected once it's complete."}])
-      } else {
-        toast({ title: 'Analysis Failed', description: result.error, variant: 'destructive' });
-        setAppIsLoading(false);
-      }
+      toast({ title: 'Analysis Started', description: 'The document is being analyzed. You can see progress in the History page.' });
+      setMessages(prev => [...prev, { role: 'model', content: "I've started analyzing the document. You'll be redirected once it's complete."}])
+      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
-      setAppIsLoading(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 

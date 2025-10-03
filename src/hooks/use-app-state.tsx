@@ -25,6 +25,7 @@ export type AppState = {
   setProjectId: (id: string | null) => void;
   uploadedFiles: UploadedFile[];
   setUploadedFiles: (files: UploadedFile[]) => void;
+  startAnalysis: (files: UploadedFile[]) => Promise<string>;
 };
 
 export const AppStateContext = createContext<AppState | null>(null);

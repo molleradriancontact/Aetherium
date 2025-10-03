@@ -6,7 +6,6 @@ import { useToast } from '@/hooks/use-toast';
 import { FileUp, Loader2, X } from 'lucide-react';
 import React, { useCallback, useState, useMemo } from 'react';
 import { useDropzone, FileWithPath } from 'react-dropzone';
-import { startAnalysisAction } from '@/app/actions';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ScrollArea } from './ui/scroll-area';
@@ -24,7 +23,7 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 };
 
 export function FileUpload() {
-  const { setIsLoading, clearState } = useAppState();
+  const { startAnalysis } = useAppState();
   const { user } = useFirebase();
   const { toast } = useToast();
   const [files, setFiles] = useState<FileWithPath[]>([]);
@@ -119,8 +118,6 @@ export function FileUpload() {
     }
 
     setIsProcessing(true);
-    setIsLoading(true);
-    clearState(false); // Clear previous state without causing a loading flicker
 
     try {
         const uploadedFiles: UploadedFile[] = await Promise.all(files.map(async (file) => ({
@@ -128,22 +125,14 @@ export function FileUpload() {
           content: await readFileAsDataURL(file)
         })));
 
-        const result = await startAnalysisAction({
-          userId: user.uid,
-          files: uploadedFiles,
-        });
+        await startAnalysis(uploadedFiles);
         
-        if (result.success) {
-            toast({ title: 'Analysis Started', description: 'Your project is now being analyzed. You can see progress in the History page.' });
-        } else {
-            toast({ title: 'Analysis Failed', description: result.error, variant: 'destructive' });
-        }
+        toast({ title: 'Analysis Started', description: 'Your project is now being analyzed. You can see progress in the History page.' });
+        
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
         toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
     } finally {
-        // The main loading state is now driven by the AppProvider listening to Firestore,
-        // so we can set local processing to false.
         setIsProcessing(false);
     }
   };
