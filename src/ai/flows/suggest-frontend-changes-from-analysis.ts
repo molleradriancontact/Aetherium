@@ -36,11 +36,11 @@ const prompt = ai.definePrompt({
   output: {schema: SuggestFrontendChangesFromAnalysisOutputSchema},
   prompt: `Based on the following analysis report of the existing file structure and architecture:
 
-  {{analysisReport}}
+  {{{analysisReport}}}
 
   And considering the following user-defined architecture or intent (if provided):
 
-  {{#if userArchitecture}}{{userArchitecture}}{{else}}No user-defined architecture provided.{{/if}}
+  {{#if userArchitecture}}{{{userArchitecture}}}{{else}}No user-defined architecture provided.{{/if}}
 
   Suggest specific changes to the front end of the. Explain your reasoning for each suggestion.
 

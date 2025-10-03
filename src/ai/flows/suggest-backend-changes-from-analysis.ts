@@ -13,8 +13,7 @@ import {z} from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
 const SuggestBackendChangesFromAnalysisInputSchema = z.object({
-  fileStructureAnalysis: z.string().describe('The analysis of the existing backend file structure.'),
-  userDefinedArchitecture: z.string().describe('The user-defined architecture for the backend.'),
+  analysisReport: z.string().describe('The analysis of the existing backend file structure.'),
 });
 export type SuggestBackendChangesFromAnalysisInput = z.infer<typeof SuggestBackendChangesFromAnalysisInputSchema>;
 
@@ -36,8 +35,7 @@ const prompt = ai.definePrompt({
 
   Based on the analysis of the existing file structure and the user-defined architecture, suggest changes to the backend to improve its structure, maintainability, and performance.
 
-  Existing File Structure Analysis: {{{fileStructureAnalysis}}}
-  User-Defined Architecture: {{{userDefinedArchitecture}}}
+  Analysis Report: {{{analysisReport}}}
 
   Consider code smells, potential improvements, and alignment with the user-defined architecture.
   Provide clear and actionable suggestions with reasoning.

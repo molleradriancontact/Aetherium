@@ -246,7 +246,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         setDetailedStatus('Generating backend suggestions');
         await addHistory(newProjectId, 'Generating backend suggestions...');
-        const backendResult = await suggestBackendChangesFromAnalysis({ fileStructureAnalysis: reportResult.report });
+        const backendResult = await suggestBackendChangesFromAnalysis({ analysisReport: reportResult.report });
         await updateDoc(projectRef, { backendSuggestions: backendResult });
 
         await addHistory(newProjectId, 'Analysis complete.');
