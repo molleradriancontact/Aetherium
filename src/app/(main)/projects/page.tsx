@@ -3,7 +3,8 @@
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase } from "@/firebase";
-import { ArchitectProject, useAppState } from "@/app/provider";
+import { ArchitectProject } from "@/app/provider";
+import { useAppState } from "@/hooks/use-app-state";
 import { Briefcase, Loader2, PlusCircle, ArrowRight, FileText, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
