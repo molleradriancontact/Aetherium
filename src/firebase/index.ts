@@ -10,22 +10,6 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 export function initializeFirebase() {
   if (!getApps().length) {
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const firestore = getFirestore(app);
-    
-    // Point to emulators if running locally
-    if (process.env.NODE_ENV === 'development') {
-        // IMPORTANT: Make sure you have the Firebase Local Emulator Suite running
-        // Use `firebase emulators:start` in your terminal
-        try {
-            connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-            connectFirestoreEmulator(firestore, '127.0.0.1', 8080);
-            console.log("Connected to Firebase Emulators");
-        } catch (e) {
-            console.warn("Could not connect to Firebase emulators. Please ensure they are running.", e);
-        }
-    }
-    
     return getSdks(app);
   }
 
