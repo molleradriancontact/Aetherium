@@ -1,7 +1,7 @@
 
 'use server';
 
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAdminApp, getAdminAuth } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
 
@@ -77,8 +77,8 @@ export async function addCollaborator(ownerId: string, projectId: string, collab
         const collaboratorData = collaboratorDoc.data()!;
 
         await projectRef.update({
-            collaborators: getFirestore.FieldValue.arrayUnion(collaboratorId),
-            collaboratorDetails: getFirestore.FieldValue.arrayUnion({
+            collaborators: FieldValue.arrayUnion(collaboratorId),
+            collaboratorDetails: FieldValue.arrayUnion({
                 id: collaboratorId,
                 email: collaboratorData.email,
                 username: collaboratorData.username,
@@ -117,11 +117,11 @@ export async function removeCollaborator(ownerId: string, projectId: string, col
         const collaboratorDetailsToRemove = (projectData.collaboratorDetails || []).find((c: any) => c.id === collaboratorId);
 
         const updates: any = {
-            collaborators: getFirestore.FieldValue.arrayRemove(collaboratorId)
+            collaborators: FieldValue.arrayRemove(collaboratorId)
         };
 
         if (collaboratorDetailsToRemove) {
-            updates.collaboratorDetails = getFirestore.FieldValue.arrayRemove(collaboratorDetailsToRemove);
+            updates.collaboratorDetails = FieldValue.arrayRemove(collaboratorDetailsToRemove);
         }
         
         await projectRef.update(updates);
