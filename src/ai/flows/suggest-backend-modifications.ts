@@ -10,7 +10,7 @@
 import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const SuggestBackendModificationsInputSchema = z.object({
   analysisReport: z.string().describe('The comprehensive analysis report of the existing backend file structure and architecture.'),

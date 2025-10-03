@@ -4,7 +4,7 @@
 // import the Genkit and Google AI plugin libraries
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import {googleAI} from '@genkit-ai/google-genai';
 
 
 const helloFlow = ai.defineFlow(
