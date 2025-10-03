@@ -1,15 +1,24 @@
-
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
   if (!getApps().length) {
     const app = initializeApp(firebaseConfig);
+    
+    // Initialize App Check
+    if (typeof window !== 'undefined') {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider('6Lce_v0pAAAAAP_Z1E9_eETI2aX2_5Y2tW_sKIbH'), // Replace with your reCAPTCHA v3 site key
+        isTokenAutoRefreshEnabled: true
+      });
+    }
+
     return getSdks(app);
   }
 
