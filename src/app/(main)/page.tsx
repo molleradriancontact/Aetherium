@@ -41,7 +41,7 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                       <p className="text-xs text-muted-foreground mb-4">A comprehensive overview of your codebase.</p>
-                      <Link href="/analysis" passHref>
+                      <Link href="/analysis" >
                           <Button>View Report <ArrowRight className="ml-2 h-4 w-4" /></Button>
                       </Link>
                   </CardContent>
@@ -53,7 +53,7 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                       <p className="text-xs text-muted-foreground mb-4">AI-powered recommendations for your UI.</p>
-                      <Link href="/frontend" passHref>
+                      <Link href="/frontend" >
                         <Button variant="secondary">View Suggestions</Button>
                       </Link>
                   </CardContent>
@@ -65,7 +65,7 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                       <p className="text-xs text-muted-foreground mb-4">Optimize your server-side logic and architecture.</p>
-                      <Link href="/backend" passHref>
+                      <Link href="/backend" >
                         <Button variant="secondary">View Suggestions</Button>
                       </Link>
                   </CardContent>

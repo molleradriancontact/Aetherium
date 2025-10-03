@@ -29,7 +29,7 @@ export default function FrontendPage() {
             <CardDescription className="mt-2">
                 Frontend suggestions will appear here after a successful analysis.
             </CardDescription>
-            <Link href="/" passHref>
+            <Link href="/" >
                 <Button className="mt-6">Analyze Your Project</Button>
             </Link>
         </Card>

@@ -29,7 +29,7 @@ export default function AnalysisPage() {
             <CardDescription className="mt-2">
                 You need to upload and analyze your project files first.
             </CardDescription>
-            <Link href="/" passHref>
+            <Link href="/" >
                 <Button className="mt-6">Go to Dashboard</Button>
             </Link>
         </Card>
