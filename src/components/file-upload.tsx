@@ -37,7 +37,7 @@ export function FileUpload() {
           }
           return fileWithPath;
       }).filter(
-        (file) => !prevFiles.some((prevFile) => prevFile.path === file.path)
+        (file) => !prevFiles.some((prevFile) => prevFile.path === file.path && prevFile.size === file.size)
       );
       return [...prevFiles, ...newFiles];
     });
@@ -93,7 +93,7 @@ export function FileUpload() {
   });
 
   const fileList = useMemo(() => files.map((file, index) => (
-    <li key={`${file.path}-${file.size}-${index}`} className="text-sm text-muted-foreground flex items-center gap-2">
+    <li key={`${file.path}-${file.size}`} className="text-sm text-muted-foreground flex items-center gap-2">
       <Input
         value={file.path || ''}
         onChange={(e) => handleFileNameChange(index, e.target.value)}
@@ -149,7 +149,7 @@ export function FileUpload() {
     clearState(false);
 
     try {
-        addHistory('Project created. Preparing files for analysis...');
+        addHistory('Preparing files for analysis...');
         
         const fileDataUris = await Promise.all(files.map(readFileAsDataURL));
 
@@ -157,9 +157,7 @@ export function FileUpload() {
           path: file.path!,
           content: fileDataUris[index]
         }));
-
-        await createProject(`New Analysis - ${new Date().toLocaleString()}`, uploadedFiles);
-
+        
         const codeSnippets = files.map((file, index) => {
           const content = fileDataUris[index];
           // For non-text files, just include the path and a placeholder
@@ -181,6 +179,9 @@ ${content}
         const result = await analyzeFilesAction({ fileStructure, codeSnippets });
         
         if (result.success) {
+            await createProject(result.projectName, uploadedFiles);
+            addHistory(`Project "${result.projectName}" created.`);
+
             setAnalysisReport(result.report);
             if (result.frontendSuggestions) {
               setFrontendSuggestions(result.frontendSuggestions);
