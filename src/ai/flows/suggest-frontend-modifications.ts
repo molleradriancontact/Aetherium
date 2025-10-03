@@ -11,7 +11,6 @@
 import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 
 const GeneratedFileSchema = z.object({
     path: z.string().describe("The full path of the file to be created or modified."),
@@ -45,10 +44,10 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert AI architect and frontend developer. Your task is to generate the necessary frontend code based on an analysis report and user architecture.
 
   Based on the following analysis report of the existing file structure and architecture:
-  {{analysisReport}}
+  {{{analysisReport}}}
 
   And considering the following user-defined architecture or intent (if provided):
-  {{#if userArchitecture}}{{userArchitecture}}{{else}}No user-defined architecture provided.{{/if}}
+  {{#if userArchitecture}}{{{userArchitecture}}}{{else}}No user-defined architecture provided.{{/if}}
 
   Your task is to:
   1.  Determine which frontend files (e.g., .tsx, .css) need to be created or modified.

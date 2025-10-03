@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview This file defines a Genkit flow for suggesting modifications to the backend of a system based on AI analysis.
@@ -10,7 +9,6 @@
 import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 
 const GeneratedFileSchema = z.object({
     path: z.string().describe("The full path of the file to be created or modified."),
@@ -42,10 +40,10 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert AI architect. Your task is to generate the necessary backend code based on an analysis report and user architecture.
 
   Based on the following analysis report of the existing backend file structure and architecture:
-  {{analysisReport}}
+  {{{analysisReport}}}
 
   And considering the following user-defined architecture or intent (if provided):
-  {{#if userArchitecture}}{{userArchitecture}}{{else}}No user-defined architecture provided.{{/if}}
+  {{#if userArchitecture}}{{{userArchitecture}}}{{else}}No user-defined architecture provided.{{/if}}
 
   Your task is to:
   1.  Determine which files need to be created or modified.
