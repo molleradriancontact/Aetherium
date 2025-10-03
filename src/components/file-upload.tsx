@@ -5,7 +5,7 @@ import { useAppState } from '@/hooks/use-app-state';
 import { useToast } from '@/hooks/use-toast';
 import { FileUp, Loader2, X } from 'lucide-react';
 import React, { useCallback, useState, useMemo } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { useDropzone, FileWithPath } from 'react-dropzone';
 import { analyzeFilesAction } from '@/app/actions';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -47,18 +47,23 @@ function createTree(files: { path: string }[]): string {
 export function FileUpload() {
   const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, clearState, createProject } = useAppState();
   const { toast } = useToast();
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<FileWithPath[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    setFiles(prevFiles => [...prevFiles, ...acceptedFiles]);
+  const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
+    setFiles(prevFiles => {
+        const newFiles = acceptedFiles.filter(
+            (file) => !prevFiles.some((prevFile) => prevFile.path === file.path)
+        );
+        return [...prevFiles, ...newFiles];
+    });
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, noClick: files.length > 0 });
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
   const fileList = useMemo(() => files.map(file => (
-    <li key={file.name + file.size} className="text-sm text-muted-foreground">
-      {file.name}
+    <li key={file.path} className="text-sm text-muted-foreground">
+      {file.path}
     </li>
   )), [files]);
 
@@ -83,10 +88,10 @@ export function FileUpload() {
         const fileContents = await Promise.all(files.map(file => file.text()));
 
         const codeSnippets = files.map((file, index) =>
-        `--- ${file.name} ---\n${fileContents[index]}`
+        `--- ${file.path} ---\n${fileContents[index]}`
         ).join('\n\n');
 
-        const filePaths = files.map(f => ({ path: (f as any).webkitRelativePath || f.name }));
+        const filePaths = files.map(f => ({ path: f.path as string }));
         const fileStructure = createTree(filePaths);
         
         addHistory('Starting AI analysis...');
@@ -112,10 +117,14 @@ export function FileUpload() {
     }
   };
   
-  // This is required to allow folder uploads
   const inputProps = useMemo(() => {
     const props = getInputProps();
-    return { ...props, webkitdirectory: "true", mozdirectory: "true" };
+    return {
+      ...props,
+      directory: "true",
+      webkitdirectory: "true",
+      mozdirectory: "true",
+    };
   }, [getInputProps]);
 
   return (
