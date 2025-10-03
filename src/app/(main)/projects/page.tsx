@@ -127,7 +127,9 @@ export default function ProjectsPage() {
                             ) : (
                                 <LayoutGrid className="h-4 w-4" />
                             )}
-                            <span>{project.projectType.charAt(0).toUpperCase() + project.projectType.slice(1)}</span>
+                            {project.projectType && (
+                                <span>{project.projectType.charAt(0).toUpperCase() + project.projectType.slice(1)}</span>
+                            )}
                         </div>
                     </CardContent>
                     <CardContent className="flex items-center justify-between gap-2">
