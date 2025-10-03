@@ -161,36 +161,48 @@ export default function PrototypePage() {
               </div>
             </CardHeader>
             <CardContent>
-                 <Tabs defaultValue={generatedFiles[0]?.path}>
-                    <TabsList>
+                 <Tabs defaultValue={generatedFiles[0]?.path} className="w-full">
+                    <TabsList className="grid w-full grid-cols-auto">
                         {generatedFiles.map(file => (
                             <TabsTrigger key={file.path} value={file.path}>{file.path.split("/").pop()}</TabsTrigger>
                         ))}
                     </TabsList>
                     {generatedFiles.map(file => (
                         <TabsContent key={file.path} value={file.path}>
-                            {file.visualDescription && (
-                                <Card className="mb-4 bg-muted/50">
-                                    <CardHeader>
-                                        <CardTitle className="text-lg">Visual Preview Description</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-muted-foreground whitespace-pre-wrap">{file.visualDescription}</p>
-                                    </CardContent>
-                                </Card>
-                            )}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base font-mono">{file.path}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <ScrollArea className="h-[500px] w-full">
-                                        <pre className="font-code text-sm bg-muted p-4 rounded-md overflow-x-auto whitespace-pre-wrap break-words">
-                                            {file.content}
-                                        </pre>
-                                    </ScrollArea>
-                                </CardContent>
-                            </Card>
+                            <Tabs defaultValue={file.visualDescription ? "visual" : "code"} className="w-full">
+                                {file.visualDescription && (
+                                     <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="visual">Visual Preview</TabsTrigger>
+                                        <TabsTrigger value="code">Code</TabsTrigger>
+                                    </TabsList>
+                                )}
+                               {file.visualDescription && (
+                                <TabsContent value="visual">
+                                     <Card className="mt-4 bg-muted/50">
+                                        <CardHeader>
+                                            <CardTitle className="text-lg">Visual Preview Description</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-muted-foreground whitespace-pre-wrap">{file.visualDescription}</p>
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                               )}
+                                <TabsContent value="code">
+                                    <Card className={file.visualDescription ? "mt-4" : ""}>
+                                        <CardHeader>
+                                            <CardTitle className="text-base font-mono">{file.path}</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <ScrollArea className="h-[500px] w-full">
+                                                <pre className="font-code text-sm bg-muted p-4 rounded-md overflow-x-auto whitespace-pre-wrap break-words">
+                                                    {file.content}
+                                                </pre>
+                                            </ScrollArea>
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                            </Tabs>
                         </TabsContent>
                     ))}
                 </Tabs>
