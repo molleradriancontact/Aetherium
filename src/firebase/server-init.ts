@@ -11,13 +11,9 @@ function initializeAdminApp(): App {
         return getApp('admin');
     }
 
-    const creds = process.env.GOOGLE_APPLICATION_CREDENTIALS
-        ? credential.applicationDefault()
-        : undefined;
-
-    return initializeApp({
-        credential: creds,
-    }, 'admin');
+    // By not passing any credential, Firebase Admin SDK will use Application Default Credentials
+    // which are automatically available in this environment.
+    return initializeApp({}, 'admin');
 }
 
 export function getAdminApp(): App {
