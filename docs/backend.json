@@ -1,0 +1,320 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the OS Architect application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "username": {
+          "type": "string",
+          "description": "The username of the user, unique across the platform."
+        },
+        "registrationDate": {
+          "type": "string",
+          "description": "Date and time the user registered.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "username",
+        "registrationDate"
+      ]
+    },
+    "Project": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Project",
+      "type": "object",
+      "description": "Represents a specific OS architecture project undertaken by a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the project."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Project). The ID of the user who owns this project."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the project."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the project's purpose and goals."
+        },
+        "creationDate": {
+          "type": "string",
+          "description": "Date and time the project was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "description",
+        "creationDate"
+      ]
+    },
+    "AnalysisReport": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AnalysisReport",
+      "type": "object",
+      "description": "Represents a report generated after analyzing the uploaded OS files/folders.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the analysis report."
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Reference to Project. (Relationship: Project 1:N AnalysisReport). The ID of the project this report belongs to."
+        },
+        "reportDate": {
+          "type": "string",
+          "description": "Date and time the report was generated.",
+          "format": "date-time"
+        },
+        "content": {
+          "type": "string",
+          "description": "The full content of the analysis report (e.g., in Markdown or plain text)."
+        },
+        "summary": {
+          "type": "string",
+          "description": "A short summary of the findings in the analysis report."
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "reportDate",
+        "content",
+        "summary"
+      ]
+    },
+    "SystemChange": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SystemChange",
+      "type": "object",
+      "description": "Represents a proposed or deployed change to the system (front-end or back-end).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the system change."
+        },
+        "analysisReportId": {
+          "type": "string",
+          "description": "Reference to AnalysisReport. (Relationship: AnalysisReport 1:N SystemChange). The ID of the analysis report that prompted this change."
+        },
+        "changeType": {
+          "type": "string",
+          "description": "Type of change (e.g., 'frontend', 'backend', 'configuration')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of what the change does."
+        },
+        "proposedCode": {
+          "type": "string",
+          "description": "The proposed code or configuration changes (if applicable)."
+        },
+        "deploymentDate": {
+          "type": "string",
+          "description": "Date and time the change was deployed (if applicable).",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the change (e.g., 'proposed', 'deployed', 'rejected')."
+        }
+      },
+      "required": [
+        "id",
+        "analysisReportId",
+        "changeType",
+        "description",
+        "status"
+      ]
+    },
+    "UploadedFile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UploadedFile",
+      "type": "object",
+      "description": "Represents a file uploaded by the user for analysis.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the uploaded file."
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Reference to Project. (Relationship: Project 1:N UploadedFile).  The project to which this file was uploaded."
+        },
+        "filename": {
+          "type": "string",
+          "description": "Name of the uploaded file."
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Date and time the file was uploaded.",
+          "format": "date-time"
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "Size of the uploaded file in bytes."
+        },
+        "fileType": {
+          "type": "string",
+          "description": "MIME type of the uploaded file."
+        },
+        "content": {
+          "type": "string",
+          "description": "The content of the uploaded file."
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "filename",
+        "uploadDate",
+        "fileSize",
+        "fileType"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Collection to store user profiles.  Uses path-based ownership for private user data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/projects/{projectId}",
+        "definition": {
+          "entityName": "Project",
+          "schema": {
+            "$ref": "#/backend/entities/Project"
+          },
+          "description": "Collection to store projects owned by a specific user. (User 1:N Project). Uses path-based ownership.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique identifier of the project."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/projects/{projectId}/analysisReports/{analysisReportId}",
+        "definition": {
+          "entityName": "AnalysisReport",
+          "schema": {
+            "$ref": "#/backend/entities/AnalysisReport"
+          },
+          "description": "Collection to store analysis reports for a specific project. (Project 1:N AnalysisReport). Uses path-based ownership.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique identifier of the project."
+            },
+            {
+              "name": "analysisReportId",
+              "description": "The unique identifier of the analysis report."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/projects/{projectId}/analysisReports/{analysisReportId}/systemChanges/{systemChangeId}",
+        "definition": {
+          "entityName": "SystemChange",
+          "schema": {
+            "$ref": "#/backend/entities/SystemChange"
+          },
+          "description": "Collection to store system changes related to a specific analysis report. (AnalysisReport 1:N SystemChange). Uses path-based ownership.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique identifier of the project."
+            },
+            {
+              "name": "analysisReportId",
+              "description": "The unique identifier of the analysis report."
+            },
+            {
+              "name": "systemChangeId",
+              "description": "The unique identifier of the system change."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/projects/{projectId}/uploadedFiles/{uploadedFileId}",
+        "definition": {
+          "entityName": "UploadedFile",
+          "schema": {
+            "$ref": "#/backend/entities/UploadedFile"
+          },
+          "description": "Collection to store uploaded files for a specific project. (Project 1:N UploadedFile). Uses path-based ownership.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "projectId",
+              "description": "The unique identifier of the project."
+            },
+            {
+              "name": "uploadedFileId",
+              "description": "The unique identifier of the uploaded file."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and easily debuggable, following the core design principles and strategy mandates. It supports shared use by multiple users, with clear ownership and access control.  Authorization Independence is achieved through path-based ownership and by avoiding `get()` calls in security rules, which makes the database operations atomic. The data is segregated structurally based on ownership to maintain a homogeneous security posture for each collection.\n\nThe primary data structure utilizes path-based ownership for user-specific data, and leverages hierarchical paths where one entity is exclusively owned by another (1:N relationships). This approach avoids the need for complex authorization logic within the rules themselves, simplifying debugging and maintenance.\n\nTo enable secure `list` operations (QAPs), data is structurally segregated.  For instance, user-specific data resides under the `/users/{userId}` path, ensuring that listing projects, files or reports only returns the resources owned by that user.  All write operations enforce invariants like ownership and timestamps."
+  }
+}
