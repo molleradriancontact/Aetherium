@@ -1,74 +1,83 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for user profiles and their associated projects.
+ * @fileoverview Firestore Security Rules for OS Architect application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model, where users can only
+ * access their own user data and projects.  It prioritizes security by
+ * default, explicitly denying access unless specifically allowed. Data shape is not enforced,
+ * but the relationships between users and their projects are validated.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information. Only the authenticated user can read or write their own profile.
- * - /users/{userId}/projects/{projectId}: Stores projects owned by a specific user. Only the owning user can create, read, update, or delete their own projects.
+ * - /users/{userId}: Stores user profile information.  Each user document's ID
+ *   must match the authenticated user's UID.
+ * - /users/{userId}/projects/{projectId}: Stores project data, with each project
+ *   belonging to a specific user. The `userId` field within the project must
+ *   match the parent user document's ID, and the project ID must match the document ID.
  *
  * Key Security Decisions:
- * - User listing is disallowed to protect user privacy.
- * - Strict ownership is enforced for both user profiles and projects.
- * - Data validation is relaxed to allow for rapid prototyping but critical authorization fields are validated.
+ * - Users can only read and write their own user documents.
+ * - Users can only create, read, update, and delete projects that they own.
+ * - Listing all users is disallowed.
+ * - No data shape validation is performed.
  *
  * Denormalization for Authorization:
- * - The `ArchitectProject` entity contains a `userId` field, which is used to enforce ownership. This avoids needing to query a separate collection to determine project ownership.
+ * - Project documents contain a `userId` field, which is used to enforce
+ *   ownership.  This avoids the need for complex queries or joins to
+ *   determine project ownership.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the request is authenticated.
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Helper function to check if the authenticated user is the owner of the resource.
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // Helper function to check if the authenticated user is the existing owner of the resource.
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
     /**
-     * @description Controls access to user profile information.
+     * @description Enforces user-level access control for user profiles.
      * @path /users/{userId}
-     * @allow (get) User with ID 'user123' can read their own profile: auth.uid == 'user123'
-     * @allow (create) User with ID 'user123' can create their own profile: auth.uid == 'user123'
-     * @allow (update) User with ID 'user123' can update their own profile: auth.uid == 'user123'
-     * @allow (delete) User with ID 'user123' can delete their own profile: auth.uid == 'user123'
-     * @deny (get) User with ID 'user456' cannot read the profile of user 'user123': auth.uid != 'user123'
-     * @deny (create) User with ID 'user456' cannot create a profile with ID 'user123': auth.uid != 'user123'
-     * @principle Enforces document ownership for writes.  Validates relational integrity between the path and the resource data.
+     * @allow (create) - User with UID 'user_abc' can create their own user document with id 'user_abc'.
+     * @allow (get) - User with UID 'user_abc' can read their own user document.
+     * @allow (update) - User with UID 'user_abc' can update their own user document.
+     * @allow (delete) - User with UID 'user_abc' can delete their own user document.
+     * @deny (create) - User with UID 'user_xyz' cannot create a user document with id 'user_abc'.
+     * @deny (get) - User with UID 'user_xyz' cannot read user document of 'user_abc'.
+     * @deny (update) - User with UID 'user_xyz' cannot update user document of 'user_abc'.
+     * @deny (delete) - User with UID 'user_xyz' cannot delete user document of 'user_abc'.
+     * @principle Enforces document ownership for all operations on user documents.
      */
     match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
       allow get: if isOwner(userId);
-      allow list: if false; // User listing is not allowed.
+      allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id; // Enforce immutability of userId
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && resource.data.id == userId;
+      allow delete: if isOwner(userId) && resource.data.id == userId;
     }
 
     /**
-     * @description Controls access to user's analysis and chat projects.
+     * @description Enforces user-level access control for projects within a user's data tree.
      * @path /users/{userId}/projects/{projectId}
-     * @allow (get) User 'user123' can read their own project 'project456': auth.uid == 'user123'
-     * @allow (create) User 'user123' can create a project under their ID: auth.uid == 'user123'
-     * @allow (update) User 'user123' can update their own project 'project456': auth.uid == 'user123'
-     * @allow (delete) User 'user123' can delete their own project 'project456': auth.uid == 'user123'
-     * @deny (get) User 'user456' cannot read project 'project456' owned by 'user123': auth.uid != 'user123'
-     * @deny (create) User 'user456' cannot create a project under user 'user123': auth.uid != 'user123'
-     * @principle Enforces document ownership for writes. Validates relational integrity between the path and the resource data.
+     * @allow (create) - User with UID 'user_abc' can create a project with userId 'user_abc' and id 'project_123'.
+     * @allow (get) - User with UID 'user_abc' can read a project with userId 'user_abc' and id 'project_123'.
+     * @allow (update) - User with UID 'user_abc' can update a project with userId 'user_abc' and id 'project_123'.
+     * @allow (delete) - User with UID 'user_abc' can delete a project with userId 'user_abc' and id 'project_123'.
+     * @deny (create) - User with UID 'user_xyz' cannot create a project under 'user_abc'.
+     * @deny (get) - User with UID 'user_xyz' cannot read a project under 'user_abc'.
+     * @deny (update) - User with UID 'user_xyz' cannot update a project under 'user_abc'.
+     * @deny (delete) - User with UID 'user_xyz' cannot delete a project under 'user_abc'.
+     * @principle Enforces document ownership for all operations on project documents.
      */
     match /users/{userId}/projects/{projectId} {
+       function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId; // Enforce immutability of userId
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId && request.resource.data.id == projectId;
+      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId) && resource.data.userId == userId;
     }
   }
 }
