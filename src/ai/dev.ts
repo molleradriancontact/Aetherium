@@ -12,3 +12,4 @@ import './flows/suggest-frontend-modifications.ts';
 import './flows/generate-project-name.ts';
 import './flows/hello.ts';
 import './flows/chat.ts';
+import './flows/project-chat.ts';
