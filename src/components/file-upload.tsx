@@ -4,7 +4,7 @@
 import { useAppState } from '@/hooks/use-app-state';
 import { useToast } from '@/hooks/use-toast';
 import { FileUp, Loader2, X } from 'lucide-react';
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo, useRef } from 'react';
 import { useDropzone, FileWithPath } from 'react-dropzone';
 import { analyzeFilesAction } from '@/app/actions';
 import { Button } from './ui/button';
@@ -57,33 +57,19 @@ export function FileUpload() {
   const { toast } = useToast();
   const [files, setFiles] = useState<FileWithPath[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const fileUploadStartTimeRef = useRef<number | null>(null);
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
-    // Each new upload will start a fresh file list for the new analysis.
-    const newFiles = acceptedFiles.filter(
-        (file) => !files.some((prevFile) => prevFile.path === file.path)
-    );
-     // If there's an active project and we're adding new files, clear the old state.
-    if (projectId && newFiles.length > 0 && (!fileUploadStartTimeRef.current || Date.now() - fileUploadStartTimeRef.current > 1000)) {
-        clearState(false); // Don't reset loading state, just clear data
-        setFiles(newFiles); // Start with a fresh list
-    } else {
-        setFiles((prevFiles) => [...prevFiles, ...newFiles]);
-    }
-    fileUploadStartTimeRef.current = Date.now();
-  }, [files, projectId, clearState]);
+    setFiles((prevFiles) => {
+      const newFiles = acceptedFiles.filter(
+        (file) => !prevFiles.some((prevFile) => prevFile.path === file.path)
+      );
+      return [...prevFiles, ...newFiles];
+    });
+  }, []);
 
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
     onDrop,
-    accept: {
-      'text/*': ['.txt', '.md', '.json', '.html', '.css', '.js', '.ts', '.tsx', '.jsx'],
-      'application/pdf': ['.pdf'],
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.svg'],
-    }
   });
 
   const fileList = useMemo(() => files.map(file => (
@@ -107,9 +93,9 @@ export function FileUpload() {
 
     setIsProcessing(true);
     setIsLoading(true);
+    clearState(false);
     
     try {
-        // This flow ensures we are always working on a new project for a new analysis
         await createProject(`New Analysis - ${new Date().toLocaleString()}`);
         addHistory('Project created. Preparing files for analysis...');
         
@@ -134,15 +120,15 @@ export function FileUpload() {
         } else {
             addHistory(`Analysis failed: ${result.error}`);
             toast({ title: 'Analysis Failed', description: result.error, variant: 'destructive' });
-            clearState(); // Clear everything on failure
-            setFiles([]); // Also clear the file list from the UI
+            clearState(); 
+            setFiles([]); 
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
         addHistory(`Operation failed: ${errorMessage}`);
         toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
-        clearState(); // Clear everything on failure
-        setFiles([]); // Also clear the file list from the UI
+        clearState(); 
+        setFiles([]); 
     } finally {
         setIsLoading(false);
         setIsProcessing(false);
@@ -151,8 +137,6 @@ export function FileUpload() {
   
   const inputProps = useMemo(() => {
     const props = getInputProps();
-    // The webkitdirectory attributes are non-standard but widely supported for folder uploads.
-    // We cast the props to 'any' to avoid TypeScript errors with these attributes.
     const anyProps: any = { ...props };
     anyProps.directory = "true";
     anyProps.webkitdirectory = "true";
@@ -173,7 +157,7 @@ export function FileUpload() {
             <p className="mt-2 text-foreground">
               {files.length > 0 ? 'Add more files or folders' : 'Drag & drop files/folders here, or click to select'}
             </p>
-            <p className="text-xs text-muted-foreground">Supports common document, text, and image file types.</p>
+            <p className="text-xs text-muted-foreground">The system will attempt to analyze any file type you upload.</p>
           </div>
         </div>
 
