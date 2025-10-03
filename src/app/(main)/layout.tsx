@@ -27,6 +27,7 @@ import {
   Beaker,
   User,
   Users,
+  LayoutGrid,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
@@ -37,13 +38,12 @@ import { Loader2 } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'The Lab', icon: Beaker },
+  { href: '/projects', label: 'Projects', icon: LayoutGrid },
   { href: '/analysis', label: 'Analysis Report', icon: FileText },
   { href: '/frontend', label: 'Frontend', icon: Code },
   { href: '/backend', label: 'Backend', icon: Database },
   { href: '/prototype', label: 'Prototype', icon: FlaskConical },
-  { href: '/library', label: 'Library', icon: Library },
   { href: '/history', label: 'History', icon: GitBranch },
-  { href: '/collaboration', label: 'Collaboration', icon: Users },
   { href: '/account', label: 'Account', icon: User },
 ];
 
@@ -71,7 +71,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     if (pathname !== '/') {
         clearState(true); // force a clear and nav
     }
-    router.push('/');
   }
   
   if (isUserLoading || !user) {

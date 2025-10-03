@@ -146,7 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!projectId) {
-      clearState(false);
+      // clearState(false); No need to clear if no project is selected
       setDetailedStatus(null);
       return;
     }
