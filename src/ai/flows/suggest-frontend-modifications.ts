@@ -20,6 +20,7 @@ export type SuggestFrontendModificationsInput = z.infer<typeof SuggestFrontendMo
 const SuggestFrontendModificationsOutputSchema = z.object({
   suggestedChanges: z.string().describe('The AI-suggested modifications to the front end, based on the analysis and architecture.'),
   reasoning: z.string().describe('The AI reasoning behind the suggested modifications.'),
+  visualDescription: z.string().describe('A detailed description of what the visual changes in the prototype will look like.'),
 });
 export type SuggestFrontendModificationsOutput = z.infer<typeof SuggestFrontendModificationsOutputSchema>;
 
@@ -33,7 +34,7 @@ const prompt = ai.definePrompt({
   name: 'suggestFrontendModificationsPrompt',
   input: {schema: SuggestFrontendModificationsInputSchema},
   output: {schema: SuggestFrontendModificationsOutputSchema},
-  prompt: `Based on the following analysis report of the existing file structure and architecture:\n\n  {{analysisReport}}\n\n  And considering the following user-defined architecture or intent (if provided):\n\n  {{#if userArchitecture}}{{userArchitecture}}{{else}}No user-defined architecture provided.{{/if}}\n\n  Suggest specific modifications to the front end of the system to enhance the design and improve the user experience. Explain your reasoning for each suggestion.\n\n  Format your response as follows:\n\n  Suggested Modifications: [List of suggested modifications]\n  Reasoning: [Explanation of why these modifications are recommended]`,
+  prompt: `Based on the following analysis report of the existing file structure and architecture:\n\n  {{analysisReport}}\n\n  And considering the following user-defined architecture or intent (if provided):\n\n  {{#if userArchitecture}}{{userArchitecture}}{{else}}No user-defined architecture provided.{{/if}}\n\n  Suggest specific modifications to the front end of the system to enhance the design and improve the user experience. Explain your reasoning for each suggestion, and provide a description of the visual changes.\n\n  Format your response as follows:\n\n  Suggested Modifications: [List of suggested modifications]\n  Reasoning: [Explanation of why these modifications are recommended]\n  Visual Description: [A detailed description of the visual changes to the UI]`,
 });
 
 const suggestFrontendModificationsFlow = ai.defineFlow(
