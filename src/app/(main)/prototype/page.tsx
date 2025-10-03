@@ -81,16 +81,19 @@ export default function PrototypePage() {
     if (!generatedFiles) return;
 
     startApplying(async () => {
+      addHistory("Applying generated code changes...");
       try {
-        // In a real scenario, this would call a tool to modify the file system.
-        // For now, we simulate this with a server action that will be implemented
-        // by the AI agent in the next step.
         await applyCodeChanges(generatedFiles);
+        
         addHistory("Code changes have been applied to your project.");
         toast({
           title: "Changes Applied!",
           description: "The generated code has been written to your files.",
         });
+        
+        // Clear the generated files from the view after applying
+        setGeneratedFiles(null);
+
       } catch (error) {
         console.error("Failed to apply changes", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
