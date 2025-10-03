@@ -4,45 +4,32 @@
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase } from "@/firebase";
-import { ArchitectProject } from "@/app/provider";
+import { ArchitectProject, CollaboratorDetails } from "@/app/provider";
 import { useAppState } from "@/hooks/use-app-state";
-import { Users, Loader2, PlusCircle, Trash2, Send } from "lucide-react";
+import { Users, Loader2, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, onSnapshot } from "firebase/firestore";
 import { useEffect, useState, useTransition } from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { addCollaborator, removeCollaborator } from "@/app/actions";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-interface CollaboratorInfo {
-    [id: string]: {
-        email?: string;
-        displayName?: string;
-    }
-}
 
 export default function CollaborationPage() {
   const { user, firestore } = useFirebase();
   const { isHydrated } = useAppState();
-  const [projects, setProjects] = useState<(ArchitectProject & {collaboratorDetails: CollaboratorInfo})[]>([]);
+  const [projects, setProjects] = useState<ArchitectProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteEmails, setInviteEmails] = useState<{[key: string]: string}>({});
   const [isInviting, startInviting] = useTransition();
   const [isRemoving, startRemoving] = useTransition();
 
   useEffect(() => {
     if (!user || !firestore) return;
 
-    // Query for projects owned by the user
-    const ownedProjectsQuery = query(collection(firestore, 'users', user.uid, 'projects'));
-    
-    // Query for projects where the user is a collaborator
-    // Note: Firestore doesn't support querying subcollections across all users directly.
-    // This example fetches owned projects and projects where user is a collaborator on their own projects list.
-    // For a full collaboration model, a separate 'projects' root collection would be better.
     const projectsRef = collection(firestore, 'users', user.uid, 'projects');
     const q = query(projectsRef);
 
@@ -53,13 +40,8 @@ export default function CollaborationPage() {
           ...data,
           id: doc.id,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-          collaboratorDetails: {}
-        } as ArchitectProject & {collaboratorDetails: CollaboratorInfo};
+        } as ArchitectProject;
       });
-
-      // Fetch collaborator details (email/name) - this is simplified.
-      // In a real app, you might have a 'users' collection to look up details.
-      // For now, we'll just display IDs.
 
       setProjects(userProjects);
       setIsLoading(false);
@@ -72,6 +54,7 @@ export default function CollaborationPage() {
   }, [user, firestore]);
   
   const handleInvite = (projectId: string) => {
+    const inviteEmail = inviteEmails[projectId] || "";
     if (!inviteEmail.trim() || !user) return;
 
     startInviting(async () => {
@@ -81,7 +64,7 @@ export default function CollaborationPage() {
                 title: "Collaborator Added",
                 description: `${inviteEmail} has been added to the project.`
             });
-            setInviteEmail("");
+            setInviteEmails(prev => ({...prev, [projectId]: ""}));
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
             toast({
@@ -153,18 +136,18 @@ export default function CollaborationPage() {
                                     <span className="text-sm text-muted-foreground">({project.projectType})</span>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="space-y-4">
+                            <AccordionContent className="space-y-6 pt-4">
                                 <div>
                                     <h4 className="font-semibold mb-2">Invite Collaborator</h4>
                                     <div className="flex gap-2">
                                         <Input 
                                             type="email" 
                                             placeholder="user@example.com"
-                                            value={inviteEmail}
-                                            onChange={(e) => setInviteEmail(e.target.value)}
+                                            value={inviteEmails[project.id] || ""}
+                                            onChange={(e) => setInviteEmails(prev => ({...prev, [project.id]: e.target.value}))}
                                             disabled={isInviting}
                                         />
-                                        <Button onClick={() => handleInvite(project.id)} disabled={isInviting || !inviteEmail.trim()}>
+                                        <Button onClick={() => handleInvite(project.id)} disabled={isInviting || !(inviteEmails[project.id] || "").trim()}>
                                             {isInviting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4"/>}
                                         </Button>
                                     </div>
@@ -173,16 +156,20 @@ export default function CollaborationPage() {
                                 <div>
                                     <h4 className="font-semibold mb-2">Current Collaborators</h4>
                                     <div className="space-y-2">
-                                        {project.collaborators && project.collaborators.length > 0 ? (
-                                            project.collaborators.map(id => (
-                                                <div key={id} className="flex items-center justify-between p-2 rounded-md bg-muted">
-                                                    <div className="flex items-center gap-2">
-                                                         <Avatar className="h-6 w-6">
-                                                            <AvatarFallback>{id.substring(0, 1).toUpperCase()}</AvatarFallback>
+                                        {project.collaboratorDetails && project.collaboratorDetails.length > 0 ? (
+                                            project.collaboratorDetails.map(collaborator => (
+                                                <div key={collaborator.id} className="flex items-center justify-between p-2 rounded-md bg-muted">
+                                                    <div className="flex items-center gap-3">
+                                                         <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={collaborator.photoURL || undefined} />
+                                                            <AvatarFallback>{collaborator.username?.[0]?.toUpperCase() || '?'}</AvatarFallback>
                                                         </Avatar>
-                                                        <span className="text-sm font-mono">{id}</span>
+                                                        <div>
+                                                            <p className="text-sm font-medium">{collaborator.username}</p>
+                                                            <p className="text-xs text-muted-foreground">{collaborator.email}</p>
+                                                        </div>
                                                     </div>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(project.id, id)} disabled={isRemoving}>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(project.id, collaborator.id)} disabled={isRemoving}>
                                                         {isRemoving ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4"/>}
                                                     </Button>
                                                 </div>

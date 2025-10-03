@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, User } from 'firebase/auth';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, User, updateProfile } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -30,19 +30,26 @@ export default function SignUpPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { auth, firestore } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleUserCreation = (user: User | null) => {
+  const handleUserCreation = async (user: User | null, defaultUsername?: string, photoURL?: string | null) => {
     if (user && firestore) {
+        const finalUsername = username || defaultUsername || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
+
+        // Update Auth profile first
+        await updateProfile(user, { displayName: finalUsername, photoURL: photoURL || user.photoURL });
+
         const userRef = doc(firestore, 'users', user.uid);
         const userData = {
           id: user.uid,
           email: user.email,
-          username: user.displayName || user.email?.split('@')[0],
+          username: finalUsername,
+          photoURL: photoURL || user.photoURL,
           registrationDate: new Date().toISOString(),
         };
         // Use non-blocking write with error handling and merge option
@@ -60,11 +67,15 @@ export default function SignUpPage() {
       });
       return;
     }
+     if (!username.trim()) {
+      toast({ variant: 'destructive', title: 'Username is required.' });
+      return;
+    }
     if (!auth) return;
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      handleUserCreation(userCredential.user);
+      await handleUserCreation(userCredential.user);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -82,7 +93,7 @@ export default function SignUpPage() {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      handleUserCreation(result.user);
+      await handleUserCreation(result.user, result.user.displayName || undefined, result.user.photoURL);
     } catch (error: any) {
        toast({
         variant: 'destructive',
@@ -119,6 +130,18 @@ export default function SignUpPage() {
         </CardContent>
         <form onSubmit={handleSignUp}>
           <CardContent className="grid gap-4">
+             <div className="grid gap-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Your name"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={isGoogleLoading || isLoading}
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input

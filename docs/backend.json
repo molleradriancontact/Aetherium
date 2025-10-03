@@ -20,6 +20,11 @@
           "type": "string",
           "description": "The username of the user, unique across the platform."
         },
+        "photoURL": {
+          "type": "string",
+          "description": "The URL of the user's profile picture.",
+          "format": "uri"
+        },
         "registrationDate": {
           "type": "string",
           "description": "Date and time the user registered.",
@@ -105,6 +110,13 @@
             "items": {
                 "type": "string"
             }
+        },
+        "collaboratorDetails": {
+          "type": "array",
+          "description": "An array of objects containing details about each collaborator.",
+          "items": {
+            "$ref": "#/entities/Collaborator"
+          }
         }
       },
       "required": [
@@ -165,6 +177,32 @@
         }
       },
       "required": ["role", "content"]
+    },
+    "Collaborator": {
+      "title": "Collaborator",
+      "type": "object",
+      "description": "Represents a collaborator on a project.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique ID of the collaborator."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email of the collaborator.",
+          "format": "email"
+        },
+        "username": {
+          "type": "string",
+          "description": "The username of the collaborator."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "The URL of the collaborator's profile picture.",
+          "format": "uri"
+        }
+      },
+      "required": ["id", "email", "username"]
     }
   },
   "auth": {

@@ -129,7 +129,7 @@ export default function AccountPage() {
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">Member Since</p>
                             <p className="text-sm text-foreground">
-                                {format(new Date(userProfile.registrationDate), 'MMMM d, yyyy')}
+                                {userProfile.registrationDate ? format(new Date(userProfile.registrationDate), 'MMMM d, yyyy') : 'N/A'}
                             </p>
                         </div>
                     </div>

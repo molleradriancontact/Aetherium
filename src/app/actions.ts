@@ -1,7 +1,7 @@
 
 'use server';
 
-import { doc, deleteDoc, getFirestore, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, deleteDoc, getFirestore, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
 import { getAdminApp, getAdminAuth } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
 
@@ -69,8 +69,22 @@ export async function addCollaborator(ownerId: string, projectId: string, collab
         
         const projectRef = doc(db, 'users', ownerId, 'projects', projectId);
         
+        // Fetch collaborator's user profile to get their username
+        const collaboratorUserRef = doc(db, 'users', collaboratorId);
+        const collaboratorDoc = await getDoc(collaboratorUserRef);
+        if (!collaboratorDoc.exists()) {
+            throw new Error("Collaborator's user profile does not exist.");
+        }
+        const collaboratorData = collaboratorDoc.data();
+
         await updateDoc(projectRef, {
-            collaborators: arrayUnion(collaboratorId)
+            collaborators: arrayUnion(collaboratorId),
+            collaboratorDetails: arrayUnion({
+                id: collaboratorId,
+                email: collaboratorData.email,
+                username: collaboratorData.username,
+                photoURL: collaboratorData.photoURL || null
+            })
         });
 
         revalidatePath('/collaboration');
@@ -94,10 +108,24 @@ export async function removeCollaborator(ownerId: string, projectId: string, col
 
     try {
         const projectRef = doc(db, 'users', ownerId, 'projects', projectId);
+        const projectDoc = await getDoc(projectRef);
+
+        if (!projectDoc.exists()) {
+            throw new Error("Project not found.");
+        }
         
-        await updateDoc(projectRef, {
+        const projectData = projectDoc.data();
+        const collaboratorDetailsToRemove = (projectData.collaboratorDetails || []).find((c: any) => c.id === collaboratorId);
+
+        const updates: any = {
             collaborators: arrayRemove(collaboratorId)
-        });
+        };
+
+        if (collaboratorDetailsToRemove) {
+            updates.collaboratorDetails = arrayRemove(collaboratorDetailsToRemove);
+        }
+        
+        await updateDoc(projectRef, updates);
 
         revalidatePath('/collaboration');
         return { success: true };

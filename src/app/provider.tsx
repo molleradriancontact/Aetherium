@@ -19,6 +19,13 @@ export interface UploadedFile {
     content: string;
 }
 
+export interface CollaboratorDetails {
+  id: string;
+  email: string;
+  username: string;
+  photoURL?: string | null;
+}
+
 export interface ArchitectProject {
     id: string;
     userId: string;
@@ -31,6 +38,8 @@ export interface ArchitectProject {
     history?: HistoryItem[];
     uploadedFiles?: UploadedFile[];
     chatHistory?: Message[];
+    collaborators?: string[];
+    collaboratorDetails?: CollaboratorDetails[];
 }
 
 const createTree = (files: { path: string }[]): string => {
