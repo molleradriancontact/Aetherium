@@ -1,0 +1,210 @@
+
+'use client';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAppState } from "@/hooks/use-app-state";
+import { Loader2, WandSparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useState, useTransition } from "react";
+import { suggestFrontendModifications } from "@/ai/flows/suggest-frontend-modifications";
+import { suggestBackendModifications } from "@/ai/flows/suggest-backend-modifications";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { applyCodeChanges } from "@/app/actions";
+import { useToast } from "@/hooks/use-toast";
+
+type GeneratedFile = {
+  path: string;
+  content: string;
+  visualDescription?: string;
+};
+
+interface PrototypingInterfaceProps {
+    enabledScopes: ('frontend' | 'backend')[];
+    header: {
+        title: string;
+        description: string;
+    };
+}
+
+export function PrototypingInterface({ enabledScopes, header }: PrototypingInterfaceProps) {
+  const { analysisReport, frontendSuggestions, backendSuggestions, addHistory, isLoading: isAppLoading } = useAppState();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isApplying, startApplying] = useTransition();
+  const [generatedFiles, setGeneratedFiles] = useState<GeneratedFile[] | null>(null);
+  const { toast } = useToast();
+  
+  const shouldPrototypeFrontend = enabledScopes.includes('frontend') && !!frontendSuggestions;
+  const shouldPrototypeBackend = enabledScopes.includes('backend') && !!backendSuggestions;
+
+
+  const handleGeneratePrototype = async () => {
+    setIsGenerating(true);
+    setGeneratedFiles(null);
+    addHistory("Starting prototyping phase...");
+
+    try {
+      let allModifications: GeneratedFile[] = [];
+
+      if (shouldPrototypeFrontend) {
+        addHistory("Prototyping frontend modifications...");
+        const result = await suggestFrontendModifications({
+            analysisReport: analysisReport!,
+            userArchitecture: frontendSuggestions!.reasoning,
+        });
+        if(result.files) {
+            allModifications = [...allModifications, ...result.files];
+        }
+        addHistory("Frontend prototyping complete.");
+      }
+
+      if (shouldPrototypeBackend) {
+        addHistory("Prototyping backend modifications...");
+        const result = await suggestBackendModifications({
+            analysisReport: analysisReport!,
+            userArchitecture: backendSuggestions!.reasoning,
+        });
+        if(result.files) {
+            allModifications = [...allModifications, ...result.files];
+        }
+        addHistory("Backend prototyping complete.");
+      }
+
+      setGeneratedFiles(allModifications);
+      addHistory("All prototyping complete. Review the generated files.");
+
+    } catch (error) {
+      console.error("Prototyping failed", error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+      addHistory(`Prototyping failed: ${errorMessage}`);
+       toast({
+          title: "Prototyping Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleApplyChanges = () => {
+    if (!generatedFiles) return;
+
+    startApplying(async () => {
+      addHistory("Applying generated code changes...");
+      try {
+        await applyCodeChanges(generatedFiles);
+        
+        addHistory("Code changes have been applied to your project.");
+        toast({
+          title: "Changes Applied!",
+          description: "The generated code has been written to your files.",
+        });
+        
+        setGeneratedFiles(null);
+
+      } catch (error) {
+        console.error("Failed to apply changes", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        addHistory(`Failed to apply changes: ${errorMessage}`);
+        toast({
+          title: "Failed to Apply Changes",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+    });
+  }
+  
+  const isLoading = isGenerating || isAppLoading;
+
+  return (
+    <div className="space-y-8">
+        <Card>
+            <CardHeader>
+                <CardTitle>{header.title}</CardTitle>
+                <CardDescription>
+                    {header.description}
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button onClick={handleGeneratePrototype} disabled={isLoading || isApplying}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Generate Code Prototype
+                </Button>
+            </CardContent>
+        </Card>
+
+      {isLoading && (
+        <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="ml-4 text-muted-foreground">AI is thinking...</p>
+        </div>
+      )}
+
+      {generatedFiles && (
+         <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                      <CardTitle>Generated Files</CardTitle>
+                      <CardDescription>Review the code and visual descriptions generated by the AI before applying.</CardDescription>
+                  </div>
+                  <Button onClick={handleApplyChanges} disabled={isApplying} className="mt-4 sm:mt-0">
+                      {isApplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}
+                      Apply Changes
+                  </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+                 <Tabs defaultValue={generatedFiles[0]?.path} className="w-full">
+                    <TabsList className="grid w-full grid-cols-auto">
+                        {generatedFiles.map(file => (
+                            <TabsTrigger key={file.path} value={file.path}>{file.path.split("/").pop()}</TabsTrigger>
+                        ))}
+                    </TabsList>
+                    {generatedFiles.map(file => (
+                        <TabsContent key={file.path} value={file.path}>
+                            <Tabs defaultValue={file.visualDescription ? "visual" : "code"} className="w-full">
+                                {file.visualDescription && (
+                                     <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="visual">Visual Preview</TabsTrigger>
+                                        <TabsTrigger value="code">Code</TabsTrigger>
+                                    </TabsList>
+                                )}
+                               {file.visualDescription && (
+                                <TabsContent value="visual">
+                                     <Card className="mt-4 bg-muted/50">
+                                        <CardHeader>
+                                            <CardTitle className="text-lg">Visual Preview Description</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-muted-foreground whitespace-pre-wrap">{file.visualDescription}</p>
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                               )}
+                                <TabsContent value="code">
+                                    <Card className={file.visualDescription ? "mt-4" : ""}>
+                                        <CardHeader>
+                                            <CardTitle className="text-base font-mono">{file.path}</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <ScrollArea className="h-[500px] w-full">
+                                                <pre className="font-code text-sm bg-muted p-4 rounded-md overflow-x-auto whitespace-pre-wrap break-words">
+                                                    {file.content}
+                                                </pre>
+                                            </ScrollArea>
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                            </Tabs>
+                        </TabsContent>
+                    ))}
+                </Tabs>
+            </CardContent>
+         </Card>
+      )}
+    </div>
+  );
+}

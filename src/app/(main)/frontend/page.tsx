@@ -1,6 +1,7 @@
 
 'use client';
 
+import { PrototypingInterface } from "@/components/prototyping-interface";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppState } from "@/hooks/use-app-state";
@@ -20,7 +21,7 @@ export default function FrontendPage() {
         subtitle="AI-prototyped changes for your front end."
       />
 
-      {isLoading && <p className="text-muted-foreground">Generating suggestions...</p>}
+      {isLoading && <p className="text-muted-foreground">Loading suggestions...</p>}
 
       {!isLoading && !frontendSuggestions && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
@@ -36,28 +37,13 @@ export default function FrontendPage() {
       )}
       
       {frontendSuggestions && (
-        <div className="grid gap-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Suggested Changes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <pre className="font-code text-sm bg-muted p-4 rounded-md overflow-x-auto whitespace-pre-wrap break-words">
-                        {frontendSuggestions.suggestedChanges}
-                    </pre>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Reasoning</CardTitle>
-                </CardHeader>
-                <CardContent>
-                     <p className="text-muted-foreground whitespace-pre-wrap">
-                        {frontendSuggestions.reasoning}
-                    </p>
-                </CardContent>
-            </Card>
-        </div>
+        <PrototypingInterface
+          enabledScopes={['frontend']}
+          header={{
+            title: 'Generate Frontend Prototype',
+            description: 'Use the AI\'s analysis to generate prototyped code changes for the frontend. You can review the generated files before deciding to apply them.'
+          }}
+        />
       )}
     </div>
   );
