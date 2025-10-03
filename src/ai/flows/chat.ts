@@ -38,7 +38,7 @@ const chatFlow = ai.defineFlow(
       Otherwise, just respond as a helpful assistant.`;
 
     const llmResponse = await ai.generate({
-      model: googleAI.model('gemini-1.5-flash-latest'),
+      model: googleAI.model('gemini-1.5-flash'),
       tools: [saveDocumentTool],
       system: systemInstruction,
       prompt: messages.at(-1)?.content ?? '',

@@ -16,7 +16,7 @@ const helloFlow = ai.defineFlow(
   async (name) => {
     // make a generation request
     const { text } = await ai.generate({
-      model: googleAI.model('gemini-1.5-flash-latest'),
+      model: googleAI.model('gemini-1.5-flash'),
       prompt: `Hello Gemini, my name is ${name}`,
     });
     console.log(text);

@@ -42,7 +42,7 @@ const prompt = ai.definePrompt({
 
   {{#if userArchitecture}}{{userArchitecture}}{{else}}No user-defined architecture provided.{{/if}}
 
-  Suggest specific changes to the front end of the system. Explain your reasoning for each suggestion.
+  Suggest specific changes to the front end of the. Explain your reasoning for each suggestion.
 
   Format your response as follows:
 
@@ -57,7 +57,7 @@ const suggestFrontendChangesFromAnalysisFlow = ai.defineFlow(
     outputSchema: SuggestFrontendChangesFromAnalysisOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash-latest') });
+    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
     return output!;
   }
 );
