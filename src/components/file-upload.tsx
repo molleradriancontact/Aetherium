@@ -57,17 +57,34 @@ export function FileUpload() {
   const { toast } = useToast();
   const [files, setFiles] = useState<FileWithPath[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const fileUploadStartTimeRef = useRef<number | null>(null);
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
     // Each new upload will start a fresh file list for the new analysis.
     const newFiles = acceptedFiles.filter(
         (file) => !files.some((prevFile) => prevFile.path === file.path)
     );
-    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
-  }, [files]);
+     // If there's an active project and we're adding new files, clear the old state.
+    if (projectId && newFiles.length > 0 && (!fileUploadStartTimeRef.current || Date.now() - fileUploadStartTimeRef.current > 1000)) {
+        clearState(false); // Don't reset loading state, just clear data
+        setFiles(newFiles); // Start with a fresh list
+    } else {
+        setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    }
+    fileUploadStartTimeRef.current = Date.now();
+  }, [files, projectId, clearState]);
 
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+    onDrop,
+    accept: {
+      'text/*': ['.txt', '.md', '.json', '.html', '.css', '.js', '.ts', '.tsx', '.jsx'],
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.svg'],
+    }
+  });
 
   const fileList = useMemo(() => files.map(file => (
     <li key={file.path} className="text-sm text-muted-foreground">
@@ -77,6 +94,9 @@ export function FileUpload() {
 
   const handleClear = () => {
     setFiles([]);
+    if (projectId) {
+        clearState();
+    }
   }
 
   const handleAnalyze = async () => {
@@ -153,7 +173,7 @@ export function FileUpload() {
             <p className="mt-2 text-foreground">
               {files.length > 0 ? 'Add more files or folders' : 'Drag & drop files/folders here, or click to select'}
             </p>
-            <p className="text-xs text-muted-foreground">Upload your entire project folder for the best analysis</p>
+            <p className="text-xs text-muted-foreground">Supports common document, text, and image file types.</p>
           </div>
         </div>
 
