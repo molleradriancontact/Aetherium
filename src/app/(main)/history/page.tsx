@@ -54,7 +54,7 @@ export default function HistoryPage() {
                     </ul>
                 </div>
             </CardContent>
-        </card>
+        </Card>
       )}
     </div>
   );
