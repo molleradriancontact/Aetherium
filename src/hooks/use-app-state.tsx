@@ -5,6 +5,8 @@ import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest
 import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/suggest-frontend-changes-from-analysis';
 import React, { createContext, useContext } from 'react';
 
+export type HistoryItem = { id: number, message: string; timestamp: Date };
+
 export type AppState = {
   isHydrated: boolean;
   isLoading: boolean;
@@ -15,9 +17,11 @@ export type AppState = {
   setFrontendSuggestions: (suggestions: SuggestFrontendChangesFromAnalysisOutput | null) => void;
   backendSuggestions: SuggestBackendChangesFromAnalysisOutput | null;
   setBackendSuggestions: (suggestions: SuggestBackendChangesFromAnalysisOutput | null) => void;
-  history: { id: number, message: string; timestamp: Date }[];
+  history: HistoryItem[];
   addHistory: (message: string) => void;
   clearState: () => void;
+  createProject: (name: string) => Promise<string>;
+  projectId: string | null;
 };
 
 export const AppStateContext = createContext<AppState | null>(null);

@@ -12,39 +12,40 @@ import { Card, CardContent } from './ui/card';
 import { ScrollArea } from './ui/scroll-area';
 
 function createTree(files: { path: string }[]): string {
-  const root: any = {};
-  for (const file of files) {
-    const path = file.path;
-    let current = root;
-    const parts = path.split('/');
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      if (!current[part]) {
-        current[part] = i === parts.length - 1 ? null : {};
+    const root: any = {};
+    for (const file of files) {
+      const path = file.path;
+      // Handle cases where path might be undefined or not a string
+      if (typeof path !== 'string') continue;
+  
+      let current = root;
+      const parts = path.split('/');
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (!current[part]) {
+          current[part] = i === parts.length - 1 ? null : {};
+        }
+        current = current[part];
       }
-      current = current[part];
     }
+  
+    function formatTree(node: any, prefix = ''): string {
+      const entries = Object.entries(node);
+      let result = '';
+      entries.forEach(([key, value], index) => {
+        const isLast = index === entries.length - 1;
+        result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
+        if (value !== null) {
+          result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
+        }
+      });
+      return result;
+    }
+    return formatTree(root);
   }
-
-  function formatTree(node: any, prefix = ''): string {
-    const entries = Object.entries(node);
-    let result = '';
-    entries.forEach(([key, value], index) => {
-      const isLast = index === entries.length - 1;
-      result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
-      if (value !== null) {
-        result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
-      }
-    });
-    return result;
-  }
-  // This is a simple representation; for a real webkitdirectory upload,
-  // you would get relative paths. We'll use the file names for this example.
-  return formatTree(root);
-}
 
 export function FileUpload() {
-  const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, clearState } = useAppState();
+  const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, clearState, createProject } = useAppState();
   const { toast } = useToast();
   const [files, setFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -74,33 +75,48 @@ export function FileUpload() {
 
     setIsProcessing(true);
     setIsLoading(true);
-    addHistory('Preparing files for analysis...');
-
-    const fileContents = await Promise.all(files.map(file => file.text()));
-
-    const codeSnippets = files.map((file, index) =>
-      `--- ${file.name} ---\n${fileContents[index]}`
-    ).join('\n\n');
-
-    const fileStructure = createTree(files.map(f => ({ path: f.name })));
     
-    addHistory('Starting AI analysis...');
-    const result = await analyzeFilesAction({ fileStructure, codeSnippets });
-    
-    if (result.success) {
-      setAnalysisReport(result.report);
-      setFrontendSuggestions(result.frontendSuggestions);
-      setBackendSuggestions(result.backendSuggestions);
-      addHistory('Analysis complete. Report generated.');
-      toast({ title: 'Analysis Complete', description: 'The analysis report has been generated successfully.' });
-    } else {
-      addHistory(`Analysis failed: ${result.error}`);
-      toast({ title: 'Analysis Failed', description: result.error, variant: 'destructive' });
+    try {
+        await createProject(`New Analysis - ${new Date().toLocaleString()}`);
+        addHistory('Project created. Preparing files for analysis...');
+        
+        const fileContents = await Promise.all(files.map(file => file.text()));
+
+        const codeSnippets = files.map((file, index) =>
+        `--- ${file.name} ---\n${fileContents[index]}`
+        ).join('\n\n');
+
+        const filePaths = files.map(f => ({ path: (f as any).webkitRelativePath || f.name }));
+        const fileStructure = createTree(filePaths);
+        
+        addHistory('Starting AI analysis...');
+        const result = await analyzeFilesAction({ fileStructure, codeSnippets });
+        
+        if (result.success) {
+            setAnalysisReport(result.report);
+            setFrontendSuggestions(result.frontendSuggestions);
+            setBackendSuggestions(result.backendSuggestions);
+            addHistory('Analysis complete. Report generated.');
+            toast({ title: 'Analysis Complete', description: 'The analysis report has been generated successfully.' });
+        } else {
+            addHistory(`Analysis failed: ${result.error}`);
+            toast({ title: 'Analysis Failed', description: result.error, variant: 'destructive' });
+        }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        addHistory(`Operation failed: ${errorMessage}`);
+        toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
+    } finally {
+        setIsLoading(false);
+        setIsProcessing(false);
     }
-    
-    setIsLoading(false);
-    setIsProcessing(false);
   };
+  
+  // This is required to allow folder uploads
+  const inputProps = useMemo(() => {
+    const props = getInputProps();
+    return { ...props, webkitdirectory: "true", mozdirectory: "true" };
+  }, [getInputProps]);
 
   return (
     <Card>
@@ -109,13 +125,13 @@ export function FileUpload() {
           {...getRootProps()}
           className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'}`}
         >
-          <input {...getInputProps()} />
+          <input {...inputProps} />
           <div className="text-center">
             <FileUp className="mx-auto h-12 w-12 text-muted-foreground" />
             <p className="mt-2 text-foreground">
-              {files.length > 0 ? 'Add more files' : 'Drag & drop files here, or click to select'}
+              {files.length > 0 ? 'Add more files or folders' : 'Drag & drop files/folders here, or click to select'}
             </p>
-            <p className="text-xs text-muted-foreground">Upload files and folders for OS analysis</p>
+            <p className="text-xs text-muted-foreground">Upload your entire project folder for the best analysis</p>
           </div>
         </div>
 
@@ -133,7 +149,7 @@ export function FileUpload() {
             <div className="mt-6 flex justify-end">
               <Button onClick={handleAnalyze} disabled={isProcessing}>
                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Analyze Files
+                Analyze Project
               </Button>
             </div>
           </div>
