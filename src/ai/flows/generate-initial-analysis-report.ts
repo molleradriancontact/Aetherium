@@ -11,6 +11,7 @@
 import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
 const GenerateInitialAnalysisReportInputSchema = z.object({
   fileStructure: z
@@ -74,7 +75,7 @@ const generateInitialAnalysisReportFlow = ai.defineFlow(
     outputSchema: GenerateInitialAnalysisReportOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
     if (!output?.report) {
       throw new Error("The AI failed to generate a valid analysis report. The output was empty.");
     }

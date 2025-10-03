@@ -11,6 +11,7 @@
 import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
 const GenerateProjectNameInputSchema = z.object({
   fileContents: z
@@ -58,7 +59,7 @@ const generateProjectNameFlow = ai.defineFlow(
     outputSchema: GenerateProjectNameOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
     if (!output?.projectName) {
       throw new Error("The AI failed to generate a project name.");
     }

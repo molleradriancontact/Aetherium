@@ -9,6 +9,7 @@
 import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
 const SuggestBackendChangesFromAnalysisInputSchema = z.object({
   fileStructureAnalysis: z.string().describe('The analysis of the existing backend file structure.'),
@@ -52,7 +53,7 @@ const suggestBackendChangesFromAnalysisFlow = ai.defineFlow(
     outputSchema: SuggestBackendChangesFromAnalysisOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
     return output!;
   }
 );
