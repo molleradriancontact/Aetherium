@@ -23,19 +23,22 @@ import {
   Database,
   GitBranch,
   LogOut,
-  Loader2,
+  FlaskConical,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
 import { useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2 } from 'lucide-react';
+
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/analysis', label: 'Analysis Report', icon: FileText },
   { href: '/frontend', label: 'Frontend', icon: Code },
   { href: '/backend', label: 'Backend', icon: Database },
+  { href: '/prototype', label: 'Prototype', icon: FlaskConical },
   { href: '/history', label: 'History', icon: GitBranch },
 ];
 
@@ -52,7 +55,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   }, [isUserLoading, user, router]);
 
   const handleLogout = () => {
-    auth.signOut();
+    if (auth) {
+      auth.signOut();
+    }
     clearState();
   };
   
