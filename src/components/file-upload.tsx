@@ -4,13 +4,14 @@
 import { useAppState } from '@/hooks/use-app-state';
 import { useToast } from '@/hooks/use-toast';
 import { FileUp, Loader2, X } from 'lucide-react';
-import React, { useCallback, useState, useMemo, useRef } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { useDropzone, FileWithPath } from 'react-dropzone';
 import { analyzeFilesAction } from '@/app/actions';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ScrollArea } from './ui/scroll-area';
 import { UploadedFile } from '@/app/provider';
+import { Input } from './ui/input';
 
 const readFileAsDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -21,6 +22,39 @@ const readFileAsDataURL = (file: File): Promise<string> => {
     });
 };
 
+const createTree = (files: { path: string }[]): string => {
+    const root: any = {};
+    for (const file of files) {
+      const path = file.path;
+      if (typeof path !== 'string') continue;
+  
+      let current = root;
+      const parts = path.split('/');
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (!current[part]) {
+          current[part] = i === parts.length - 1 ? null : {};
+        }
+        current = current[part];
+      }
+    }
+  
+    function formatTree(node: any, prefix = ''): string {
+      const entries = Object.entries(node);
+      let result = '';
+      entries.forEach(([key, value], index) => {
+        const isLast = index === entries.length - 1;
+        result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
+        if (value !== null) {
+          result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
+        }
+      });
+      return result;
+    }
+    return formatTree(root);
+};
+
+
 export function FileUpload() {
   const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, createProject, clearState } = useAppState();
   const { toast } = useToast();
@@ -29,29 +63,39 @@ export function FileUpload() {
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
     setFiles((prevFiles) => {
-      const newFiles = acceptedFiles.filter(
+      const newFiles = acceptedFiles.map(file => {
+          const fileWithPath = file as FileWithPath;
+          if (!fileWithPath.path) {
+              fileWithPath.path = file.name;
+          }
+          return fileWithPath;
+      }).filter(
         (file) => !prevFiles.some((prevFile) => prevFile.path === file.path)
       );
       return [...prevFiles, ...newFiles];
     });
   }, []);
 
+  const handleFileNameChange = (index: number, newPath: string) => {
+    setFiles(prevFiles => {
+      const updatedFiles = [...prevFiles];
+      const file = updatedFiles[index] as FileWithPath & {path: string};
+      file.path = newPath;
+      return updatedFiles;
+    });
+  };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    getFilesFromEvent: async event => {
-        const files = Array.from(event.target.files as FileList);
-        return files.map(file => {
-          const fileWithPath = file as FileWithPath;
-          fileWithPath.path = file.webkitRelativePath || file.name;
-          return fileWithPath;
-        });
-    }
   });
 
-  const fileList = useMemo(() => files.map(file => (
-    <li key={`${file.path}-${file.size}`} className="text-sm text-muted-foreground">
-      {file.path}
+  const fileList = useMemo(() => files.map((file, index) => (
+    <li key={`${file.path}-${file.size}-${index}`} className="text-sm text-muted-foreground flex items-center gap-2">
+      <Input
+        value={file.path}
+        onChange={(e) => handleFileNameChange(index, e.target.value)}
+        className="h-8 text-sm"
+      />
     </li>
   )), [files]);
 
@@ -68,38 +112,6 @@ export function FileUpload() {
     setIsProcessing(true);
     setIsLoading(true);
     clearState(false);
-    
-    const createTree = (files: { path: string }[]): string => {
-        const root: any = {};
-        for (const file of files) {
-          const path = file.path;
-          if (typeof path !== 'string') continue;
-      
-          let current = root;
-          const parts = path.split('/');
-          for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            if (!current[part]) {
-              current[part] = i === parts.length - 1 ? null : {};
-            }
-            current = current[part];
-          }
-        }
-      
-        function formatTree(node: any, prefix = ''): string {
-          const entries = Object.entries(node);
-          let result = '';
-          entries.forEach(([key, value], index) => {
-            const isLast = index === entries.length - 1;
-            result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
-            if (value !== null) {
-              result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
-            }
-          });
-          return result;
-        }
-        return formatTree(root);
-    }
 
     try {
         addHistory('Project created. Preparing files for analysis...');
@@ -169,7 +181,7 @@ export function FileUpload() {
                 </Button>
             </div>
             <ScrollArea className="h-40 rounded-md border p-4">
-              <ul className="space-y-1">{fileList}</ul>
+              <ul className="space-y-2">{fileList}</ul>
             </ScrollArea>
             <div className="mt-6 flex justify-end">
               <Button onClick={handleAnalyze} disabled={isProcessing}>
