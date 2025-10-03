@@ -1,14 +1,14 @@
 
+// Use the configured `ai` object from genkit.ts to ensure consistency.
+import { ai } from '@/ai/genkit';
+import 'dotenv/config';
 
-// import * as admin from 'firebase-admin';
-// admin.initializeApp();
-
-import '@/ai/flows/generate-initial-analysis-report.ts';
-import '@/ai/flows/suggest-backend-changes-from-analysis.ts';
-import '@/ai/flows/suggest-frontend-changes-from-analysis.ts';
-import '@/ai/flows/suggest-backend-modifications.ts';
-import '@/ai/flows/suggest-frontend-modifications.ts';
-import '@/ai/flows/generate-project-name.ts';
-import '@/ai/flows/hello.ts';
-import '@/ai/flows/chat.ts';
-
+// The following imports register the flows with the AI object.
+import './flows/generate-initial-analysis-report.ts';
+import './flows/suggest-backend-changes-from-analysis.ts';
+import './flows/suggest-frontend-changes-from-analysis.ts';
+import './flows/suggest-backend-modifications.ts';
+import './flows/suggest-frontend-modifications.ts';
+import './flows/generate-project-name.ts';
+import './flows/hello.ts';
+import './flows/chat.ts';
