@@ -8,7 +8,7 @@ import { useAppState } from "@/hooks/use-app-state";
 import { MessageSquare, Loader2, PlusCircle, ArrowRight, Edit, Check, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { useEffect, useState, useRef, useTransition } from "react";
 import { formatDistanceToNow } from 'date-fns';
 import { Input } from "@/components/ui/input";
@@ -32,7 +32,7 @@ export default function ChatsPage() {
     if (!user || !firestore) return;
 
     const chatsColRef = collection(firestore, 'users', user.uid, 'projects');
-    const q = query(chatsColRef, where('projectType', '==', 'chat'), orderBy('createdAt', 'desc'));
+    const q = query(chatsColRef, where('projectType', '==', 'chat'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const userChats = snapshot.docs.map(doc => {
@@ -43,6 +43,8 @@ export default function ChatsPage() {
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
         } as ArchitectProject;
       });
+      // Sort on the client side
+      userChats.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setChats(userChats);
       setIsLoading(false);
     }, (error) => {

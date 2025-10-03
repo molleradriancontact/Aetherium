@@ -8,7 +8,7 @@ import { useAppState } from "@/hooks/use-app-state";
 import { Briefcase, Loader2, PlusCircle, ArrowRight, FileText, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { useEffect, useState, useTransition } from "react";
 import { formatDistanceToNow } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -29,7 +29,7 @@ export default function ProjectsPage() {
     if (!user || !firestore) return;
 
     const projectsColRef = collection(firestore, 'users', user.uid, 'projects');
-    const q = query(projectsColRef, where('projectType', '==', 'analysis'), orderBy('createdAt', 'desc'));
+    const q = query(projectsColRef, where('projectType', '==', 'analysis'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const userProjects = snapshot.docs.map(doc => {
@@ -40,6 +40,8 @@ export default function ProjectsPage() {
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
         } as ArchitectProject;
       });
+      // Sort on the client side
+      userProjects.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setProjects(userProjects);
       setIsLoading(false);
     }, (error) => {
