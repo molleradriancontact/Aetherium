@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview This file defines a Genkit flow for suggesting changes to the front end of a system based on AI analysis of the existing file structure and user-defined architecture.
@@ -56,7 +57,7 @@ const suggestFrontendChangesFromAnalysisFlow = ai.defineFlow(
     outputSchema: SuggestFrontendChangesFromAnalysisOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input, { model: googleAI.model('gemini-1so-flash') });
+    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
     return output!;
   }
 );
