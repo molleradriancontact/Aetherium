@@ -1,7 +1,7 @@
 
 'use server';
 
-import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase-admin/firestore';
 import { db } from '@/firebase/server-init';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
 import { suggestBackendChangesFromAnalysis } from '@/ai/flows/suggest-backend-changes-from-analysis';
