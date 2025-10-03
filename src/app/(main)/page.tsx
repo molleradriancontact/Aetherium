@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowRight, FileText, Code, Database, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChatInterface } from "@/components/chat-interface";
 
 export default function LabPage() {
   const { isHydrated, analysisReport, isLoading } = useAppState();
@@ -24,11 +26,22 @@ export default function LabPage() {
     <div className="space-y-8">
       <PageHeader 
         title="The Lab"
-        subtitle="Upload your project files to begin the AI-powered analysis."
+        subtitle="Upload your project files or chat directly with the AI to begin the analysis."
       />
       
       {!analysisReport ? (
-        <FileUpload />
+        <Tabs defaultValue="chat" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="chat">Chat with AI</TabsTrigger>
+            <TabsTrigger value="upload">Upload Files</TabsTrigger>
+          </TabsList>
+          <TabsContent value="chat">
+            <ChatInterface />
+          </TabsContent>
+          <TabsContent value="upload">
+            <FileUpload />
+          </TabsContent>
+        </Tabs>
       ) : (
         <Card>
           <CardHeader>
