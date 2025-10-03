@@ -6,7 +6,7 @@ import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/sugges
 import { AppStateContext, HistoryItem } from '@/hooks/use-app-state';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFirebase, useUser } from '@/firebase';
-import { collection, doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, query, orderBy, limit } from 'firebase/firestore';
 
 // Define the shape of a project document in Firestore
 export interface ArchitectProject {
@@ -52,10 +52,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
     const projectsColRef = collection(firestore, 'users', user.uid, 'projects');
+    const q = query(projectsColRef, orderBy('createdAt', 'desc'), limit(1));
     
-    // For simplicity, we'll load the first project we find.
-    // A more robust implementation might let the user choose a project.
-    const unsubscribe = onSnapshot(projectsColRef, (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
         const projectDoc = snapshot.docs[0];
         const projectData = projectDoc.data() as ArchitectProject;

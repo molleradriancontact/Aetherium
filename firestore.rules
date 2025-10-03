@@ -1,183 +1,88 @@
 /**
- * @fileoverview Firestore Security Rules for the OS Architect application.
+ * @fileoverview Firestore Security Rules for OS Architect.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model. Each user has full control
- * over their own data, and no access to other users' data. Data is structurally
- * segregated based on ownership to ensure a homogeneous security posture for each collection.
+ * This ruleset enforces a strict user-ownership model. Each user can only
+ * access their own profile data and the OS Architect projects they have created.
  *
  * Data Structure:
- * The database is structured with user-owned data nested under `/users/{userId}`.
- * Projects, analysis reports, system changes, and uploaded files are all subcollections
- * of a user's document. This hierarchical structure simplifies access control and
- * ensures that only the owner of a user document can access the data within it.
+ * - /users/{userId}: Stores user profile information.
+ * - /users/{userId}/projects/{projectId}: Stores OS Architect projects belonging to each user.
  *
  * Key Security Decisions:
- * - Users can only access their own data.
- * - Listing of user-specific data is allowed only for the owner.
- * - Data ownership is enforced through path-based rules.
+ * - Users can only create, read, update, and delete their own user documents.
+ * - Users can only create, read, update, and delete OS Architect projects under their own user ID.
+ * - Listing all users is disallowed.
  *
  * Denormalization for Authorization:
- * - All write operations enforce invariants like ownership. Each document includes the userId
- *   to guarantee ownership and allow verification through the rules.
+ * - The `ArchitectProject` entity requires the `userId` field for authorization.
+ *   This field must match the parent `/users/{userId}` path to ensure proper ownership.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Rules for user profiles. Users can only read and write their own profile data.
+     * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (create) - User with ID 'user123' can create their profile.
-     *  request.auth.uid == 'user123'
-     * @allow (get, list) - User with ID 'user123' can read their profile.
-     * request.auth.uid == 'user123'
-     * @allow (update, delete) - User with ID 'user123' can update or delete their profile.
-     * request.auth.uid == 'user123'
-     * @deny (create) - User with ID 'user456' cannot create a profile for 'user123'.
-     * request.auth.uid == 'user456'
+     * @allow (create) - User with ID 'user123' can create their own profile.
+     *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "user123", ... } } }
+     * @allow (get) - User with ID 'user123' can read their own profile.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @allow (update) - User with ID 'user123' can update their own profile.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @allow (delete) - User with ID 'user123' can delete their own profile.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @deny (create) - User with ID 'user456' cannot create a profile for user 'user123'.
+     *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "user123", ... } } }
+     * @deny (get) - User with ID 'user456' cannot read the profile of user 'user123'.
+     *   Request: { "auth": { "uid": "user456" } }
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for projects owned by a specific user.  Only the owner can create, read, update, and delete projects.
+     * @description Controls access to OS Architect project documents within a user's profile.
      * @path /users/{userId}/projects/{projectId}
-     * @allow (create) - User with ID 'user123' can create a project under their ID.
-     * request.auth.uid == 'user123'
-     * @allow (get, list) - User with ID 'user123' can read/list their projects.
-     * request.auth.uid == 'user123'
-     * @allow (update, delete) - User with ID 'user123' can update/delete their projects.
-     * request.auth.uid == 'user123'
-     * @deny (create) - User with ID 'user456' cannot create projects under 'user123'.
-     * request.auth.uid == 'user456'
-     * @principle Enforces document ownership for writes; allows owner-only reads.
+     * @allow (create) - User with ID 'user123' can create a project under their profile.
+     *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "userId": "user123", ... } } }
+     * @allow (get) - User with ID 'user123' can read a project under their profile.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @allow (update) - User with ID 'user123' can update a project under their profile.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @allow (delete) - User with ID 'user123' can delete a project under their profile.
+     *   Request: { "auth": { "uid": "user123" } }
+     * @deny (create) - User with ID 'user456' cannot create a project under user 'user123''s profile.
+     *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "userId": "user123", ... } } }
+     * @deny (get) - User with ID 'user456' cannot read a project under user 'user123''s profile.
+     *   Request: { "auth": { "uid": "user456" } }
+     * @principle Restricts project access to the owning user.
      */
     match /users/{userId}/projects/{projectId} {
-       function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
       allow delete: if isExistingOwner(userId);
     }
+  }
 
-    /**
-     * @description Rules for analysis reports within a specific project. Only the project owner can manage the reports.
-     * @path /users/{userId}/projects/{projectId}/analysisReports/{analysisReportId}
-     * @allow (create) - User 'user123' can create an analysis report in their project.
-     * request.auth.uid == 'user123'
-     * @allow (get, list) - User 'user123' can read/list analysis reports in their project.
-     * request.auth.uid == 'user123'
-     * @allow (update, delete) - User 'user123' can update/delete analysis reports in their project.
-     * request.auth.uid == 'user123'
-     * @deny (create) - User 'user456' cannot create an analysis report in project owned by 'user123'.
-     * request.auth.uid == 'user456'
-     * @principle Enforces strict ownership for analysis reports.
-     */
-    match /users/{userId}/projects/{projectId}/analysisReports/{analysisReportId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
+  // Helper Functions
+  function isSignedIn() {
+    return request.auth != null;
+  }
 
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
+  function isOwner(userId) {
+    return isSignedIn() && request.auth.uid == userId;
+  }
 
-    /**
-     * @description Rules for system changes related to an analysis report.  Only the owner of the analysis report (and thus, the project) can manage these changes.
-     * @path /users/{userId}/projects/{projectId}/analysisReports/{analysisReportId}/systemChanges/{systemChangeId}
-     * @allow (create) - User 'user123' can create a system change for their analysis report.
-     * request.auth.uid == 'user123'
-     * @allow (get, list) - User 'user123' can read/list system changes for their report.
-     * request.auth.uid == 'user123'
-     * @allow (update, delete) - User 'user123' can update/delete system changes for their report.
-     * request.auth.uid == 'user123'
-     * @deny (create) - User 'user456' cannot create system changes for an analysis report owned by 'user123'.
-     * request.auth.uid == 'user456'
-     * @principle Enforces strict ownership for system changes.
-     */
-    match /users/{userId}/projects/{projectId}/analysisReports/{analysisReportId}/systemChanges/{systemChangeId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Rules for uploaded files associated with a specific project.  Only the project owner can manage these files.
-     * @path /users/{userId}/projects/{projectId}/uploadedFiles/{uploadedFileId}
-     * @allow (create) - User 'user123' can upload a file to their project.
-     * request.auth.uid == 'user123'
-     * @allow (get, list) - User 'user123' can read/list uploaded files in their project.
-     * request.auth.uid == 'user123'
-     * @allow (update, delete) - User 'user123' can update/delete uploaded files in their project.
-     * request.auth.uid == 'user123'
-     * @deny (create) - User 'user456' cannot upload files to a project owned by 'user123'.
-     * request.auth.uid == 'user456'
-     * @principle Enforces strict ownership for uploaded files.
-     */
-    match /users/{userId}/projects/{projectId}/uploadedFiles/{uploadedFileId} {
-       function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
+  function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
   }
 }
