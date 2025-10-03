@@ -15,6 +15,12 @@
     ],
     "frameworksBackend": {
       "region": "us-central1"
-    }
+    },
+    "rewrites": [
+      {
+        "source": "/helloWorld",
+        "function": "helloWorld"
+      }
+    ]
   }
 }
