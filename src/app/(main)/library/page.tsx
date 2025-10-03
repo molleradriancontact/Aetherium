@@ -4,7 +4,7 @@
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppState } from "@/hooks/use-app-state";
-import { Library, File, FileText } from "lucide-react";
+import { Library, File, FileText, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -52,7 +52,7 @@ function renderContent(content: string) {
 }
 
 export default function LibraryPage() {
-  const { uploadedFiles, isLoading, isHydrated } = useAppState();
+  const { uploadedFiles, detailedStatus, isHydrated } = useAppState();
 
   if (!isHydrated) return null;
 
@@ -63,9 +63,14 @@ export default function LibraryPage() {
         subtitle="Browse the content of all files uploaded for the current analysis."
       />
       
-      {isLoading && <p className="text-muted-foreground">Loading library...</p>}
+      {detailedStatus && (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <p>{detailedStatus}...</p>
+        </div>
+      )}
 
-      {!isLoading && uploadedFiles.length === 0 && (
+      {!detailedStatus && uploadedFiles.length === 0 && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
             <Library className="h-12 w-12 text-muted-foreground" />
             <CardTitle className="mt-4">Library is Empty</CardTitle>
@@ -78,7 +83,7 @@ export default function LibraryPage() {
         </Card>
       )}
 
-      {!isLoading && uploadedFiles.length > 0 && (
+      {!detailedStatus && uploadedFiles.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Uploaded Files ({uploadedFiles.length})</CardTitle>

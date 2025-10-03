@@ -12,12 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatInterface } from "@/components/chat-interface";
 
 export default function LabPage() {
-  const { isHydrated, analysisReport, isLoading } = useAppState();
+  const { isHydrated, analysisReport, detailedStatus } = useAppState();
+  const isLoading = !!detailedStatus;
 
-  if (!isHydrated || isLoading) {
+  if (!isHydrated || (isLoading && !analysisReport)) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
+      <div className="flex h-full w-full flex-col items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        {detailedStatus && <p className="mt-4 text-muted-foreground">{detailedStatus}...</p>}
       </div>
     );
   }

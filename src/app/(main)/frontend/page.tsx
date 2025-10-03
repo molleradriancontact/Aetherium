@@ -5,12 +5,12 @@ import { PrototypingInterface } from "@/components/prototyping-interface";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppState } from "@/hooks/use-app-state";
-import { Code } from "lucide-react";
+import { Code, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function FrontendPage() {
-  const { frontendSuggestions, isLoading, isHydrated } = useAppState();
+  const { frontendSuggestions, detailedStatus, isHydrated } = useAppState();
 
   if (!isHydrated) return null;
 
@@ -21,9 +21,14 @@ export default function FrontendPage() {
         subtitle="AI-prototyped changes for your front end."
       />
 
-      {isLoading && <p className="text-muted-foreground">Loading suggestions...</p>}
+      {detailedStatus && (
+         <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <p>{detailedStatus}...</p>
+        </div>
+      )}
 
-      {!isLoading && !frontendSuggestions && (
+      {!detailedStatus && !frontendSuggestions && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
             <Code className="h-12 w-12 text-muted-foreground" />
             <CardTitle className="mt-4">No Suggestions Available</CardTitle>

@@ -23,11 +23,11 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 };
 
 export function FileUpload() {
-  const { startAnalysis } = useAppState();
+  const { startAnalysis, detailedStatus } = useAppState();
   const { user } = useFirebase();
   const { toast } = useToast();
   const [files, setFiles] = useState<FileWithPath[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const isProcessing = !!detailedStatus;
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
     setFiles((prevFiles) => {
@@ -99,9 +99,10 @@ export function FileUpload() {
         value={file.path || ''}
         onChange={(e) => handleFileNameChange(index, e.target.value)}
         className="h-8 text-sm"
+        disabled={isProcessing}
       />
     </li>
-  )), [files, handleFileNameChange]);
+  )), [files, handleFileNameChange, isProcessing]);
 
   const handleClear = () => {
     setFiles([]);
@@ -117,8 +118,6 @@ export function FileUpload() {
       return;
     }
 
-    setIsProcessing(true);
-
     try {
         const uploadedFiles: UploadedFile[] = await Promise.all(files.map(async (file) => ({
           path: file.path!,
@@ -127,13 +126,11 @@ export function FileUpload() {
 
         await startAnalysis(uploadedFiles);
         
-        toast({ title: 'Analysis Started', description: 'Your project is now being analyzed. You can see progress in the History page.' });
+        toast({ title: 'Analysis Started', description: 'Your project is now being analyzed. You can see progress on the main page.' });
         
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
         toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
-    } finally {
-        setIsProcessing(false);
     }
   };
   
@@ -142,9 +139,9 @@ export function FileUpload() {
       <CardContent className="p-6">
         <div
           {...getRootProps()}
-          className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'}`}
+          className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'} ${isProcessing ? 'pointer-events-none opacity-50' : ''}`}
         >
-          <input {...getInputProps()} />
+          <input {...getInputProps()} disabled={isProcessing} />
           <div className="text-center">
             <FileUp className="mx-auto h-12 w-12 text-muted-foreground" />
             <p className="mt-2 text-foreground">
@@ -158,9 +155,11 @@ export function FileUpload() {
           <div className="mt-6">
             <div className="flex justify-between items-center mb-2">
                 <h3 className="font-semibold">Uploaded Files ({files.length})</h3>
-                <Button variant="ghost" size="icon" onClick={handleClear} className="h-7 w-7">
-                    <X className="h-4 w-4" />
-                </Button>
+                {!isProcessing && (
+                    <Button variant="ghost" size="icon" onClick={handleClear} className="h-7 w-7">
+                        <X className="h-4 w-4" />
+                    </Button>
+                )}
             </div>
             <ScrollArea className="h-40 rounded-md border p-4">
               <ul className="space-y-2">{fileList}</ul>
@@ -168,7 +167,7 @@ export function FileUpload() {
             <div className="mt-6 flex justify-end">
               <Button onClick={handleAnalyze} disabled={isProcessing}>
                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Analyze Project
+                {detailedStatus ? `${detailedStatus}...` : 'Analyze Project'}
               </Button>
             </div>
           </div>

@@ -4,12 +4,12 @@
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppState } from "@/hooks/use-app-state";
-import { FileUp } from "lucide-react";
+import { FileUp, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function AnalysisPage() {
-  const { analysisReport, isLoading, isHydrated } = useAppState();
+  const { analysisReport, detailedStatus, isHydrated } = useAppState();
 
   if (!isHydrated) return null;
 
@@ -20,9 +20,14 @@ export default function AnalysisPage() {
         subtitle="A comprehensive report based on the AI's understanding of your files."
       />
       
-      {isLoading && <p className="text-muted-foreground">Generating report...</p>}
+      {detailedStatus && (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <p>{detailedStatus}...</p>
+        </div>
+      )}
 
-      {!isLoading && !analysisReport && (
+      {!detailedStatus && !analysisReport && (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
             <FileUp className="h-12 w-12 text-muted-foreground" />
             <CardTitle className="mt-4">No Report Found</CardTitle>

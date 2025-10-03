@@ -11,8 +11,8 @@ export type HistoryItem = { id: number, message: string; timestamp: Date };
 
 export type AppState = {
   isHydrated: boolean;
-  isLoading: boolean;
-  setIsLoading: (isLoading: boolean) => void;
+  detailedStatus: string | null;
+  setDetailedStatus: (status: string | null) => void;
   analysisReport: string | null;
   setAnalysisReport: (report: string | null) => void;
   frontendSuggestions: SuggestFrontendChangesFromAnalysisOutput | null;

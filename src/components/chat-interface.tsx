@@ -21,11 +21,13 @@ export function ChatInterface() {
 
   const { user } = useFirebase();
   const { toast } = useToast();
-  const { startAnalysis, projectId, projectType, chatHistory, startChat, addChatMessage, isLoading } = useAppState();
+  const { startAnalysis, projectId, projectType, chatHistory, startChat, addChatMessage, detailedStatus } = useAppState();
 
   const isChatProject = projectType === 'chat';
 
   const messages = isChatProject ? chatHistory : [];
+  const isLoading = !!detailedStatus;
+
 
   const scrollToBottom = () => {
     if (scrollAreaViewportRef.current) {
@@ -49,7 +51,7 @@ export function ChatInterface() {
       const dataUrl = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
       await startAnalysis([{ path: 'Pasted Text.txt', content: dataUrl }]);
 
-      toast({ title: 'Analysis Started', description: 'The document is being analyzed. You can see progress in the History page.' });
+      toast({ title: 'Analysis Started', description: 'The document is being analyzed. You can see progress on the main page.' });
       if (projectId) {
           await addChatMessage(projectId, { role: 'model', content: "I've started analyzing the document. You'll be redirected once it's complete."});
       }
@@ -68,6 +70,8 @@ export function ChatInterface() {
     const userMessage: Message = { role: 'user', content: input };
     let currentProjectId = projectId;
 
+    setIsResponding(true);
+
     if (!currentProjectId || !isChatProject) {
         currentProjectId = await startChat(userMessage);
     } else {
@@ -75,7 +79,6 @@ export function ChatInterface() {
     }
 
     setInput('');
-    setIsResponding(true);
 
     try {
       const result = await chat([...messages, userMessage]);
@@ -162,7 +165,7 @@ export function ChatInterface() {
                     <p className="text-xs mt-2">Your chat history will be saved automatically.</p>
                 </div>
              )}
-              {isLoading && (
+              {isLoading && !isChatProject && (
                 <div className="flex justify-center items-center p-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>

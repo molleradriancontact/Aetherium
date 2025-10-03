@@ -71,7 +71,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const [isHydrated, setIsHydrated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [detailedStatus, setDetailedStatus] = useState<string | null>(null);
   
   const [projectId, _setProjectId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
@@ -116,7 +116,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChatHistory([]);
     setProjectName('');
     setProjectType(null);
-    setIsLoading(false);
+    setDetailedStatus(null);
     if (forceNav) {
         router.push('/');
     }
@@ -130,7 +130,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     if (isUserLoading || !user || !firestore) {
         if (!isUserLoading) {
-            setIsLoading(false);
+            setDetailedStatus(null);
             if (projectId) clearState(false);
         }
         return;
@@ -138,11 +138,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (!projectId) {
       clearState(false);
-      setIsLoading(false);
+      setDetailedStatus(null);
       return;
     }
 
-    setIsLoading(true);
+    setDetailedStatus("Loading project details");
 
     const docRef = doc(firestore, 'users', user.uid, 'projects', projectId);
     
@@ -163,10 +163,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             console.warn(`Project with id ${projectId} not found.`);
             clearState(true);
         }
-        setIsLoading(false);
+        setDetailedStatus(null);
     }, (error: any) => {
         console.error("Error loading project:", error);
-        setIsLoading(false);
+        setDetailedStatus(null);
         clearState(true);
     });
 
@@ -196,7 +196,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       throw new Error("User or Firestore not available.");
     }
     
-    setIsLoading(true);
+    setDetailedStatus("Creating new analysis project");
     clearState(false);
 
     const projectRef = doc(collection(firestore, 'users', user.uid, 'projects'));
@@ -220,18 +220,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const fileStructure = createTree(files.map(f => ({ path: f.path })));
         const codeSnippets = files.map(file => `--- ${file.path} ---\n${file.content}`).join('\n\n');
 
+        setDetailedStatus('Generating project name');
         await addHistory(newProjectId, 'Generating project name...');
         const nameResult = await generateProjectName({ fileContents: codeSnippets });
         await updateDoc(projectRef, { name: nameResult.projectName });
 
+        setDetailedStatus('Generating analysis report');
         await addHistory(newProjectId, 'Generating analysis report...');
         const reportResult = await generateInitialAnalysisReport({ fileStructure, codeSnippets });
         await updateDoc(projectRef, { analysisReport: reportResult.report });
         
+        setDetailedStatus('Generating frontend suggestions');
         await addHistory(newProjectId, 'Generating frontend suggestions...');
         const frontendResult = await suggestFrontendChangesFromAnalysis({ analysisReport: reportResult.report });
         await updateDoc(projectRef, { frontendSuggestions: frontendResult });
 
+        setDetailedStatus('Generating backend suggestions');
         await addHistory(newProjectId, 'Generating backend suggestions...');
         const backendResult = await suggestBackendChangesFromAnalysis({ fileStructureAnalysis: reportResult.report });
         await updateDoc(projectRef, { backendSuggestions: backendResult });
@@ -242,7 +246,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const errorMessage = aiError.message || "An unknown AI error occurred.";
         await addHistory(newProjectId, `Analysis failed: ${errorMessage}`);
       } finally {
-        setIsLoading(false);
+        setDetailedStatus(null);
       }
     })();
 
@@ -252,7 +256,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const startChat = useCallback(async (initialMessage: Message) => {
     if (!user || !firestore) throw new Error("User or Firestore not available.");
     
-    setIsLoading(true);
+    setDetailedStatus("Starting new chat");
 
     const projectRef = doc(collection(firestore, 'users', user.uid, 'projects'));
     const newProjectId = projectRef.id;
@@ -268,7 +272,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     await setDoc(projectRef, initialChatProject);
     setProjectId(newProjectId);
-    setIsLoading(false);
+    setDetailedStatus(null);
     return newProjectId;
   }, [user, firestore]);
 
@@ -282,8 +286,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     isHydrated,
-    isLoading,
-    setIsLoading,
+    detailedStatus,
+    setDetailedStatus,
     analysisReport,
     setAnalysisReport,
     frontendSuggestions,
