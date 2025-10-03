@@ -12,13 +12,13 @@ export function initializeFirebase() {
   if (!getApps().length) {
     const app = initializeApp(firebaseConfig);
     
-    // Initialize App Check
-    if (typeof window !== 'undefined') {
-      initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider('6Lce_v0pAAAAAP_Z1E9_eETI2aX2_5Y2tW_sKIbH'), // Replace with your reCAPTCHA v3 site key
-        isTokenAutoRefreshEnabled: true
-      });
-    }
+    // App Check is disabled for now to prevent reCAPTCHA errors in development.
+    // if (typeof window !== 'undefined') {
+    //   initializeAppCheck(app, {
+    //     provider: new ReCaptchaV3Provider('6Lce_v0pAAAAAP_Z1E9_eETI2aX2_5Y2tW_sKIbH'), // Replace with your reCAPTCHA v3 site key
+    //     isTokenAutoRefreshEnabled: true
+    //   });
+    // }
 
     return getSdks(app);
   }
