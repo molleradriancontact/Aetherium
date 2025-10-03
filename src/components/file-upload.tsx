@@ -22,39 +22,6 @@ const readFileAsDataURL = (file: File): Promise<string> => {
     });
 };
 
-const createTree = (files: { path: string }[]): string => {
-    const root: any = {};
-    for (const file of files) {
-      const path = file.path;
-      if (typeof path !== 'string') continue;
-  
-      let current = root;
-      const parts = path.split('/');
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        if (!current[part]) {
-          current[part] = i === parts.length - 1 ? null : {};
-        }
-        current = current[part];
-      }
-    }
-  
-    function formatTree(node: any, prefix = ''): string {
-      const entries = Object.entries(node);
-      let result = '';
-      entries.forEach(([key, value], index) => {
-        const isLast = index === entries.length - 1;
-        result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
-        if (value !== null) {
-          result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
-        }
-      });
-      return result;
-    }
-    return formatTree(root);
-};
-
-
 export function FileUpload() {
   const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, createProject, clearState } = useAppState();
   const { toast } = useToast();
@@ -87,12 +54,48 @@ export function FileUpload() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    getFilesFromEvent: async (event: any) => {
+        const files = event.dataTransfer ? event.dataTransfer.files : event.target.files;
+        const fileList: File[] = Array.from(files);
+
+        const getFile = (file: File, path = '') => {
+            (file as any).path = path + file.name;
+            return file as FileWithPath;
+        };
+
+        const getFiles = async (entry: any): Promise<FileWithPath[]> => {
+            if (entry.isFile) {
+                return new Promise((resolve, reject) => {
+                    entry.file((file: File) => resolve([getFile(file, entry.fullPath.substring(0, entry.fullPath.lastIndexOf('/') + 1))]), reject);
+                });
+            }
+            if (entry.isDirectory) {
+                return new Promise<FileWithPath[]>((resolve, reject) => {
+                    const dirReader = entry.createReader();
+                    dirReader.readEntries(async (entries: any[]) => {
+                        const allFiles = await Promise.all(entries.map(getFiles));
+                        resolve(allFiles.flat());
+                    }, reject);
+                });
+            }
+            return [];
+        };
+
+        const filesFromEntries = await Promise.all(
+            Array.from(event.dataTransfer?.items || [])
+            .map(item => item.webkitGetAsEntry())
+            .filter(entry => entry)
+            .map(getFiles)
+        );
+
+        return [...fileList, ...filesFromEntries.flat()];
+    }
   });
 
   const fileList = useMemo(() => files.map((file, index) => (
     <li key={`${file.path}-${file.size}-${index}`} className="text-sm text-muted-foreground flex items-center gap-2">
       <Input
-        value={file.path}
+        value={file.path || ''}
         onChange={(e) => handleFileNameChange(index, e.target.value)}
         className="h-8 text-sm"
       />
@@ -108,6 +111,38 @@ export function FileUpload() {
       toast({ title: 'No files selected', description: 'Please upload files to analyze.', variant: 'destructive' });
       return;
     }
+    
+    const createTree = (files: { path: string }[]): string => {
+        const root: any = {};
+        for (const file of files) {
+          const path = file.path;
+          if (typeof path !== 'string') continue;
+      
+          let current = root;
+          const parts = path.split('/');
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (!current[part]) {
+              current[part] = i === parts.length - 1 ? null : {};
+            }
+            current = current[part];
+          }
+        }
+      
+        function formatTree(node: any, prefix = ''): string {
+          const entries = Object.entries(node);
+          let result = '';
+          entries.forEach(([key, value], index) => {
+            const isLast = index === entries.length - 1;
+            result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
+            if (value !== null) {
+              result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
+            }
+          });
+          return result;
+        }
+        return formatTree(root);
+    };
 
     setIsProcessing(true);
     setIsLoading(true);
@@ -125,8 +160,18 @@ export function FileUpload() {
 
         await createProject(`New Analysis - ${new Date().toLocaleString()}`, uploadedFiles);
 
-        const codeSnippets = files.map((file, index) =>
-        `--- ${file.path} ---\n${fileDataUris[index]}`
+        const codeSnippets = files.map((file, index) => {
+          const content = fileDataUris[index];
+          // For non-text files, just include the path and a placeholder
+          if (content.startsWith('data:image') || content.startsWith('data:application')) {
+            return `--- ${file.path} ---
+[Binary content at this path]
+`;
+          }
+          return `--- ${file.path} ---
+${content}
+`;
+        }
         ).join('\n\n');
 
         const filePaths = files.map(f => ({ path: f.path as string }));
@@ -137,8 +182,12 @@ export function FileUpload() {
         
         if (result.success) {
             setAnalysisReport(result.report);
-            setFrontendSuggestions(result.frontendSuggestions);
-            setBackendSuggestions(result.backendSuggestions);
+            if (result.frontendSuggestions) {
+              setFrontendSuggestions(result.frontendSuggestions);
+            }
+            if (result.backendSuggestions) {
+              setBackendSuggestions(result.backendSuggestions);
+            }
             addHistory('Analysis complete. Report generated.');
             toast({ title: 'Analysis Complete', description: 'The analysis report has been generated successfully.' });
         } else {
