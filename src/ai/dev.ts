@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-admin.initializeApp();
+// admin.initializeApp();
 
 import '@/ai/flows/generate-initial-analysis-report.ts';
 import '@/ai/flows/suggest-backend-changes-from-analysis.ts';

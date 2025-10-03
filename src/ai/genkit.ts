@@ -5,7 +5,7 @@ export const ai = genkit({
   plugins: [
     googleAI(),
   ],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  cacheStore: 'firebase',
+  // flowStateStore: 'firebase',
+  // traceStore: 'firebase',
+  // cacheStore: 'firebase',
 });
