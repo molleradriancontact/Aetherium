@@ -150,7 +150,7 @@ export function FileUpload() {
           {...getRootProps()}
           className={`relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'}`}
         >
-          <input {...getInputProps()} webkitdirectory="" directory="" />
+          <input {...getInputProps()} />
           <div className="text-center">
             <FileUp className="mx-auto h-12 w-12 text-muted-foreground" />
             <p className="mt-2 text-foreground">
