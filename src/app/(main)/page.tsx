@@ -1,26 +1,21 @@
-
 'use client';
 
-import { FileUpload } from "@/components/file-upload";
 import { PageHeader } from "@/components/page-header";
 import { useAppState } from "@/hooks/use-app-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowRight, FileText, Code, Database, Loader2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChatInterface } from "@/components/chat-interface";
+import { ArrowRight, FileText, Code, Database, Loader2, FlaskConical, LayoutGrid } from "lucide-react";
 import { ProjectChatInterface } from "@/components/project-chat-interface";
 
 export default function HomePage() {
   const { isHydrated, analysisReport, frontendSuggestions, backendSuggestions, detailedStatus, projectName } = useAppState();
   const isLoading = !!detailedStatus;
 
-  if (!isHydrated || (isLoading && !analysisReport)) {
+  if (!isHydrated) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        {detailedStatus && <p className="mt-4 text-muted-foreground">{detailedStatus}...</p>}
       </div>
     );
   }
@@ -28,23 +23,33 @@ export default function HomePage() {
   return (
     <div className="space-y-8">
       <PageHeader 
-        title={analysisReport ? projectName || "Dashboard" : "Home"}
-        subtitle={!analysisReport ? "Start a new project by uploading files or chatting with the AI." : "Welcome back. Continue working on your project."}
+        title={analysisReport ? projectName || "Dashboard" : "Welcome to Aetherium"}
+        subtitle={!analysisReport ? "Start a new project or open an existing one." : "Continue working on your project."}
       />
       
       {!analysisReport ? (
-        <Tabs defaultValue="chat" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="chat">Chat with AI</TabsTrigger>
-            <TabsTrigger value="upload">Upload Files</TabsTrigger>
-          </TabsList>
-          <TabsContent value="chat">
-            <ChatInterface />
-          </TabsContent>
-          <TabsContent value="upload">
-            <FileUpload />
-          </TabsContent>
-        </Tabs>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="flex flex-col items-center justify-center p-8 text-center">
+            <FlaskConical className="h-12 w-12 text-muted-foreground" />
+            <CardTitle className="mt-4">Start a New Project</CardTitle>
+            <CardDescription className="mt-2 mb-6">
+                Analyze files or chat with the AI to begin prototyping.
+            </CardDescription>
+            <Link href="/prototype" >
+                <Button>Go to Prototype <ArrowRight className="ml-2 h-4 w-4" /></Button>
+            </Link>
+          </Card>
+          <Card className="flex flex-col items-center justify-center p-8 text-center">
+            <LayoutGrid className="h-12 w-12 text-muted-foreground" />
+            <CardTitle className="mt-4">Open an Existing Project</CardTitle>
+            <CardDescription className="mt-2 mb-6">
+                Browse and manage all of your past projects.
+            </CardDescription>
+            <Link href="/projects" >
+                <Button>View Projects <ArrowRight className="ml-2 h-4 w-4" /></Button>
+            </Link>
+          </Card>
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">

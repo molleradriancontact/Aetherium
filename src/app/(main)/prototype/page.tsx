@@ -1,50 +1,62 @@
-
 'use client';
 
-import { PrototypingInterface } from "@/components/prototyping-interface";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppState } from "@/hooks/use-app-state";
-import { FlaskConical, Loader2 } from "lucide-react";
-import { useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChatInterface } from "@/components/chat-interface";
+import { FileUpload } from "@/components/file-upload";
+import { PrototypingInterface } from "@/components/prototyping-interface";
 
 export default function PrototypePage() {
-  const { analysisReport, frontendSuggestions, backendSuggestions, detailedStatus } = useAppState();
+  const { isHydrated, analysisReport, detailedStatus } = useAppState();
 
-  const canPrototype = useMemo(() => {
-    return !!(analysisReport && (frontendSuggestions || backendSuggestions));
-  }, [analysisReport, frontendSuggestions, backendSuggestions]);
+  if (!isHydrated) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        {detailedStatus && <p className="mt-4 text-muted-foreground">{detailedStatus}...</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <PageHeader
-        title="AI Prototyping"
-        subtitle="Generate and review code modifications for both frontend and backend."
+        title="Prototype"
+        subtitle="Generate a new prototype from scratch or work on an existing one."
       />
-      
-      {detailedStatus && (
-         <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <p>{detailedStatus}...</p>
-        </div>
-      )}
 
-      {!canPrototype && !detailedStatus ? (
-        <Card className="flex flex-col items-center justify-center p-12 text-center">
-            <FlaskConical className="h-12 w-12 text-muted-foreground" />
-            <CardTitle className="mt-4">Ready to Prototype</CardTitle>
-            <CardDescription className="mt-2">
-                First, analyze a project. Then, come back here to generate code.
-            </CardDescription>
-        </Card>
+      {!analysisReport ? (
+        <Tabs defaultValue="chat" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="chat">Chat with AI</TabsTrigger>
+            <TabsTrigger value="upload">Upload Files</TabsTrigger>
+          </TabsList>
+          <TabsContent value="chat">
+            <ChatInterface />
+          </TabsContent>
+          <TabsContent value="upload">
+            <FileUpload />
+          </TabsContent>
+        </Tabs>
       ) : (
-        <PrototypingInterface
-          enabledScopes={['frontend', 'backend']}
-          header={{
-            title: 'Generate Full-Stack Prototype',
-            description: 'Use the AI\'s analysis to generate prototyped code changes for both the frontend and backend. You can review the generated files before deciding to apply them.'
-          }}
-        />
+        <>
+          {detailedStatus && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <p>{detailedStatus}...</p>
+            </div>
+          )}
+          <PrototypingInterface
+            enabledScopes={['frontend', 'backend']}
+            header={{
+              title: 'Generate Full-Stack Prototype',
+              description: 'Use the AI\'s analysis to generate prototyped code changes for both the frontend and backend. You can review the generated files before deciding to apply them.'
+            }}
+          />
+        </>
       )}
     </div>
   );
