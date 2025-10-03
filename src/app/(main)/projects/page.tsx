@@ -1,4 +1,3 @@
-
 'use client';
 
 import { PageHeader } from "@/components/page-header";
@@ -135,7 +134,7 @@ export default function ProjectsPage() {
                 </div>
               </CardContent>
               <CardContent>
-                 <Link href="/analysis" onClick={() => setProjectId(p.id)}>
+                 <Link href="/" onClick={() => setProjectId(p.id)}>
                     <Button className="w-full" variant={p.id === projectId ? 'default' : 'secondary'}>
                         {p.id === projectId ? 'Currently Viewing' : 'View Project'}
                         <ArrowRight className="ml-2 h-4 w-4" />

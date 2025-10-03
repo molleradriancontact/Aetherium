@@ -1,4 +1,3 @@
-
 'use server';
 
 import { doc, deleteDoc } from 'firebase/firestore';

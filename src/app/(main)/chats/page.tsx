@@ -1,4 +1,3 @@
-
 'use client';
 
 import { PageHeader } from "@/components/page-header";
@@ -8,7 +7,7 @@ import { ArchitectProject, useAppState } from "@/app/provider";
 import { MessageSquare, Loader2, PlusCircle, ArrowRight, Edit, Check, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { useEffect, useState, useRef, useTransition } from "react";
 import { formatDistanceToNow } from 'date-fns';
 import { Input } from "@/components/ui/input";
