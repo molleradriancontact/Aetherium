@@ -15,7 +15,6 @@ function createTree(files: { path: string }[]): string {
     const root: any = {};
     for (const file of files) {
       const path = file.path;
-      // Handle cases where path might be undefined or not a string
       if (typeof path !== 'string') continue;
   
       let current = root;
@@ -42,7 +41,16 @@ function createTree(files: { path: string }[]): string {
       return result;
     }
     return formatTree(root);
-  }
+}
+
+const readFileAsDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+};
 
 export function FileUpload() {
   const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, clearState, createProject } = useAppState();
@@ -85,10 +93,10 @@ export function FileUpload() {
         await createProject(`New Analysis - ${new Date().toLocaleString()}`);
         addHistory('Project created. Preparing files for analysis...');
         
-        const fileContents = await Promise.all(files.map(file => file.text()));
+        const fileDataUris = await Promise.all(files.map(readFileAsDataURL));
 
         const codeSnippets = files.map((file, index) =>
-        `--- ${file.path} ---\n${fileContents[index]}`
+        `--- ${file.path} ---\n${fileDataUris[index]}`
         ).join('\n\n');
 
         const filePaths = files.map(f => ({ path: f.path as string }));
@@ -119,12 +127,13 @@ export function FileUpload() {
   
   const inputProps = useMemo(() => {
     const props = getInputProps();
-    return {
-      ...props,
-      directory: "true",
-      webkitdirectory: "true",
-      mozdirectory: "true",
-    };
+    // The webkitdirectory attributes are non-standard but widely supported for folder uploads.
+    // We cast the props to 'any' to avoid TypeScript errors with these attributes.
+    const anyProps: any = { ...props };
+    anyProps.directory = "true";
+    anyProps.webkitdirectory = "true";
+    anyProps.mozdirectory = "true";
+    return anyProps;
   }, [getInputProps]);
 
   return (

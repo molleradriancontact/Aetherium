@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -18,7 +19,7 @@ const GenerateInitialAnalysisReportInputSchema = z.object({
   codeSnippets: z
     .string()
     .describe(
-      'A string containing the content from the uploaded files.'
+      'A string containing the content from the uploaded files, which may be text or data URIs.'
     ),
 });
 export type GenerateInitialAnalysisReportInput = z.infer<
@@ -49,7 +50,7 @@ const prompt = ai.definePrompt({
   prompt: `You are an AI expert in software architecture and application design.
 
   Your task is to analyze the content of the user's uploaded files and generate a plan for a web application based on the knowledge within them.
-  The user is not providing source code; they are providing documents (like specifications, experiment steps, business plans, etc.).
+  The user is not providing source code; they are providing documents (like specifications, experiment steps, business plans, etc.). The content may be in various formats, including data URIs for file types like DOCX or PDF. You must interpret this content.
 
   From the provided content, you must:
   1.  Understand the core purpose and goals described in the documents.
