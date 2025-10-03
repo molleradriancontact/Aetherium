@@ -14,15 +14,18 @@ import { useToast } from '@/hooks/use-toast';
 import { useAppState } from '@/hooks/use-app-state';
 
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isResponding, setIsResponding] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
 
   const { user } = useFirebase();
   const { toast } = useToast();
-  const { startAnalysis } = useAppState();
+  const { startAnalysis, projectId, projectType, chatHistory, startChat, addChatMessage, isLoading } = useAppState();
+
+  const isChatProject = projectType === 'chat';
+
+  const messages = isChatProject ? chatHistory : [];
 
   const scrollToBottom = () => {
     if (scrollAreaViewportRef.current) {
@@ -40,20 +43,22 @@ export function ChatInterface() {
       return;
     }
     
-    setIsLoading(true);
+    setIsResponding(true);
     
     try {
       const dataUrl = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
       await startAnalysis([{ path: 'Pasted Text.txt', content: dataUrl }]);
 
       toast({ title: 'Analysis Started', description: 'The document is being analyzed. You can see progress in the History page.' });
-      setMessages(prev => [...prev, { role: 'model', content: "I've started analyzing the document. You'll be redirected once it's complete."}])
+      if (projectId) {
+          await addChatMessage(projectId, { role: 'model', content: "I've started analyzing the document. You'll be redirected once it's complete."});
+      }
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
     } finally {
-      setIsLoading(false);
+      setIsResponding(false);
     }
   };
 
@@ -61,25 +66,35 @@ export function ChatInterface() {
     if (!input.trim()) return;
 
     const userMessage: Message = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
+    let currentProjectId = projectId;
+
+    if (!currentProjectId || !isChatProject) {
+        currentProjectId = await startChat(userMessage);
+    } else {
+        await addChatMessage(currentProjectId, userMessage);
+    }
+
     setInput('');
-    setIsLoading(true);
+    setIsResponding(true);
 
     try {
       const result = await chat([...messages, userMessage]);
+      const aiResponse: Message = { role: 'model', content: result.content };
       
       if (result.functionCall?.name === 'saveDocument') {
+        await addChatMessage(currentProjectId, aiResponse);
         const textToSave = result.functionCall.args.content;
         await handleSaveDocument(textToSave);
       } else {
-        setMessages(prev => [...prev, { role: 'model', content: result.content }]);
+        await addChatMessage(currentProjectId, aiResponse);
       }
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      setMessages(prev => [...prev, { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` }]);
+      const errorResponse: Message = { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` };
+      await addChatMessage(currentProjectId, errorResponse);
     } finally {
-      setIsLoading(false);
+      setIsResponding(false);
     }
   };
 
@@ -91,8 +106,8 @@ export function ChatInterface() {
   }
 
   const handleCopyChat = () => {
-    const chatHistory = messages.map(m => `${m.role === 'user' ? 'You' : 'AI'}: ${m.content}`).join('\n\n');
-    navigator.clipboard.writeText(chatHistory);
+    const chatHistoryText = messages.map(m => `${m.role === 'user' ? 'You' : 'AI'}: ${m.content}`).join('\n\n');
+    navigator.clipboard.writeText(chatHistoryText);
     toast({ title: "Chat history copied!" });
   }
 
@@ -132,7 +147,7 @@ export function ChatInterface() {
                 {message.role === 'user' && <User className="h-6 w-6 text-muted-foreground flex-shrink-0" />}
               </div>
             ))}
-            {isLoading && (
+            {isResponding && (
               <div className="flex items-start gap-3">
                 <Bot className="h-6 w-6 text-primary" />
                 <div className="rounded-lg bg-muted p-3 text-sm flex items-center">
@@ -140,20 +155,25 @@ export function ChatInterface() {
                 </div>
               </div>
             )}
-             {messages.length === 0 && !isLoading && (
+             {messages.length === 0 && !isResponding && !isLoading && (
                 <div className="text-center text-muted-foreground p-8">
                     <Bot className="h-10 w-10 mx-auto mb-4" />
-                    <p>Start a conversation with the AI.</p>
-                    <p className="text-xs mt-2">For example, you can paste a block of code or text and ask me to "save this as a document".</p>
+                    <p>Start a new conversation.</p>
+                    <p className="text-xs mt-2">Your chat history will be saved automatically.</p>
                 </div>
              )}
+              {isLoading && (
+                <div className="flex justify-center items-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              )}
           </div>
         </ScrollArea>
         <div className="flex items-start gap-2">
           <Textarea
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Type your message here, or paste content to be saved as a file..."
+            placeholder="Type your message here..."
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -161,9 +181,9 @@ export function ChatInterface() {
               }
             }}
             rows={3}
-            disabled={isLoading}
+            disabled={isResponding || isLoading}
           />
-          <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
+          <Button onClick={handleSend} disabled={isResponding || isLoading || !input.trim()}>
             Send
           </Button>
         </div>

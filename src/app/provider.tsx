@@ -6,32 +6,33 @@ import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/sugges
 import { AppStateContext, HistoryItem } from '@/hooks/use-app-state';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFirebase } from '@/firebase';
-import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, query, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, query, orderBy, limit, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
 import { suggestBackendChangesFromAnalysis } from '@/ai/flows/suggest-backend-changes-from-analysis';
 import { suggestFrontendChangesFromAnalysis } from '@/ai/flows/suggest-frontend-changes-from-analysis';
 import { generateProjectName } from '@/ai/flows/generate-project-name';
+import type { Message } from '@/ai/flows/schemas';
 
 export interface UploadedFile {
     path: string;
     content: string;
 }
 
-// This interface now aligns better with the JSON schema
 export interface ArchitectProject {
     id: string;
     userId: string;
     name: string;
-    createdAt: any; // Using 'any' for serverTimestamp flexibility
+    createdAt: any;
+    projectType: 'analysis' | 'chat';
     analysisReport?: string | null;
     frontendSuggestions?: SuggestFrontendChangesFromAnalysisOutput | null;
     backendSuggestions?: SuggestBackendChangesFromAnalysisOutput | null;
     history?: HistoryItem[];
     uploadedFiles?: UploadedFile[];
+    chatHistory?: Message[];
 }
 
-// Helper to create a file tree string
 const createTree = (files: { path: string }[]): string => {
     const root: any = {};
     for (const file of files) {
@@ -95,6 +96,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [backendSuggestions, setBackendSuggestions] = useState<SuggestBackendChangesFromAnalysisOutput | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  const [projectName, setProjectName] = useState<string>('');
+  const [projectType, setProjectType] = useState<'analysis' | 'chat' | null>(null);
   
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
@@ -109,13 +113,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBackendSuggestions(null);
     setHistory([]);
     setUploadedFiles([]);
+    setChatHistory([]);
+    setProjectName('');
+    setProjectType(null);
     setIsLoading(false);
     if (forceNav) {
         router.push('/');
     }
   }, [router]);
 
-  // Effect to load the selected project
   useEffect(() => {
     if (unsubscribeRef.current) {
         unsubscribeRef.current();
@@ -125,71 +131,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (isUserLoading || !user || !firestore) {
         if (!isUserLoading) {
             setIsLoading(false);
-            clearState(false);
+            if (projectId) clearState(false);
         }
         return;
     }
 
-    let queryToUse;
-    if (projectId) {
-      queryToUse = doc(firestore, 'users', user.uid, 'projects', projectId);
-    } else {
-      // Fallback to the most recent project if no ID is selected
-      const projectsColRef = collection(firestore, 'users', user.uid, 'projects');
-      queryToUse = query(projectsColRef, orderBy('createdAt', 'desc'), limit(1));
+    if (!projectId) {
+      clearState(false);
+      setIsLoading(false);
+      return;
     }
 
     setIsLoading(true);
 
-    const handleSnapshot = (snapshot: any) => {
-        let projectData: ArchitectProject | null = null;
-        let finalProjectId: string | null = null;
-
-        if ('docs' in snapshot) { // This is a QuerySnapshot
-            if (!snapshot.empty) {
-                const projectDoc = snapshot.docs[0];
-                projectData = projectDoc.data() as ArchitectProject;
-                finalProjectId = projectDoc.id;
-            }
-        } else { // This is a DocumentSnapshot
-            if (snapshot.exists()) {
-                projectData = snapshot.data() as ArchitectProject;
-                finalProjectId = snapshot.id;
-            }
-        }
-
-        if (projectData && finalProjectId) {
-            setProjectId(finalProjectId);
+    const docRef = doc(firestore, 'users', user.uid, 'projects', projectId);
+    
+    unsubscribeRef.current = onSnapshot(docRef, (snapshot: any) => {
+        if (snapshot.exists()) {
+            const projectData = snapshot.data() as ArchitectProject;
+            setProjectName(projectData.name);
+            setProjectType(projectData.projectType);
             setAnalysisReport(projectData.analysisReport || null);
             setFrontendSuggestions(projectData.frontendSuggestions || null);
             setBackendSuggestions(projectData.backendSuggestions || null);
             setUploadedFiles(projectData.uploadedFiles || []);
+            setChatHistory(projectData.chatHistory || []);
             
             const historyWithDates = (projectData.history || []).map(h => ({...h, timestamp: (h.timestamp as any)?.toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)}));
             setHistory(historyWithDates);
-
         } else {
-             // If specific project not found or no projects exist
-            if (projectId) setProjectId(null); // Clear invalid project ID
-            clearState(false);
+            console.warn(`Project with id ${projectId} not found.`);
+            clearState(true);
         }
         setIsLoading(false);
-    };
-
-    const handleError = (error: any) => {
+    }, (error: any) => {
         console.error("Error loading project:", error);
         setIsLoading(false);
-        clearState(false);
-        setProjectId(null); // Clear invalid ID
-    };
-
-    if (projectId) {
-        unsubscribeRef.current = onSnapshot(doc(firestore, 'users', user.uid, 'projects', projectId), handleSnapshot, handleError);
-    } else {
-        const projectsColRef = collection(firestore, 'users', user.uid, 'projects');
-        const q = query(projectsColRef, orderBy('createdAt', 'desc'), limit(1));
-        unsubscribeRef.current = onSnapshot(q, handleSnapshot, handleError);
-    }
+        clearState(true);
+    });
 
     return () => {
       if (unsubscribeRef.current) {
@@ -201,8 +180,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addHistory = useCallback(async (projectId: string, message: string) => {
     if (!user || !firestore) return;
-    // We get the current history from state to avoid a read, but in a real-world concurrent
-    // scenario, you might want to use a transaction or FieldValue.arrayUnion.
     const currentHistory = (history || []).map(h => ({...h, timestamp: h.timestamp}));
 
     const newHistoryItem = { id: Date.now(), message, timestamp: new Date() };
@@ -211,7 +188,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
     await updateDoc(projectRef, { history: updatedHistory });
-    // The onSnapshot listener will update the local state.
   }, [user, firestore, history]);
 
 
@@ -223,31 +199,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     clearState(false);
 
-    // 1. Create the initial project document
     const projectRef = doc(collection(firestore, 'users', user.uid, 'projects'));
     const newProjectId = projectRef.id;
 
     const initialProject: ArchitectProject = {
       id: newProjectId,
       userId: user.uid,
-      name: `New Project - ${new Date().toLocaleString()}`,
+      name: `New Analysis - ${new Date().toLocaleString()}`,
       createdAt: serverTimestamp(),
+      projectType: 'analysis',
       uploadedFiles: files,
       history: [{ id: Date.now(), message: 'Project created.', timestamp: new Date() }],
     };
 
     await setDoc(projectRef, initialProject);
-    setProjectId(newProjectId); // Switch to the new project
+    setProjectId(newProjectId);
 
-    // Prepare data for AI flows
-    const fileStructure = createTree(files.map(f => ({ path: f.path })));
-    const codeSnippets = files
-      .map(file => `--- ${file.path} ---\n${file.content}`)
-      .join('\n\n');
-
-    // 2. Asynchronously run all AI flows and update the document
     (async () => {
       try {
+        const fileStructure = createTree(files.map(f => ({ path: f.path })));
+        const codeSnippets = files.map(file => `--- ${file.path} ---\n${file.content}`).join('\n\n');
+
         await addHistory(newProjectId, 'Generating project name...');
         const nameResult = await generateProjectName({ fileContents: codeSnippets });
         await updateDoc(projectRef, { name: nameResult.projectName });
@@ -268,11 +240,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } catch (aiError: any) {
         console.error("AI analysis failed:", aiError);
         const errorMessage = aiError.message || "An unknown AI error occurred.";
-        try {
-          await addHistory(newProjectId, `Analysis failed: ${errorMessage}`);
-        } catch (updateError) {
-          console.error("Failed to write AI error to Firestore history:", updateError);
-        }
+        await addHistory(newProjectId, `Analysis failed: ${errorMessage}`);
       } finally {
         setIsLoading(false);
       }
@@ -280,6 +248,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return newProjectId;
   }, [user, firestore, clearState, addHistory]);
+
+  const startChat = useCallback(async (initialMessage: Message) => {
+    if (!user || !firestore) throw new Error("User or Firestore not available.");
+    
+    setIsLoading(true);
+
+    const projectRef = doc(collection(firestore, 'users', user.uid, 'projects'));
+    const newProjectId = projectRef.id;
+
+    const initialChatProject: ArchitectProject = {
+        id: newProjectId,
+        userId: user.uid,
+        name: initialMessage.content.substring(0, 30),
+        createdAt: serverTimestamp(),
+        projectType: 'chat',
+        chatHistory: [initialMessage]
+    };
+
+    await setDoc(projectRef, initialChatProject);
+    setProjectId(newProjectId);
+    setIsLoading(false);
+    return newProjectId;
+  }, [user, firestore]);
+
+  const addChatMessage = useCallback(async (projectId: string, message: Message) => {
+    if (!user || !firestore) return;
+    const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
+    const updatedHistory = [...(chatHistory || []), message];
+    await updateDoc(projectRef, { chatHistory: updatedHistory });
+  }, [user, firestore, chatHistory]);
+
 
   const value = {
     isHydrated,
@@ -303,9 +302,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     uploadedFiles,
     setUploadedFiles,
     startAnalysis,
+    chatHistory,
+    startChat,
+    addChatMessage,
+    projectName,
+    projectType,
   };
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
-
-    

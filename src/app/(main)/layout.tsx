@@ -26,6 +26,7 @@ import {
   Library,
   Briefcase,
   Beaker,
+  MessageSquare,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
@@ -36,6 +37,7 @@ import { Loader2 } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'The Lab', icon: Beaker },
+  { href: '/chats', label: 'Chats', icon: MessageSquare },
   { href: '/projects', label: 'Projects', icon: Briefcase },
   { href: '/analysis', label: 'Analysis Report', icon: FileText },
   { href: '/frontend', label: 'Frontend', icon: Code },

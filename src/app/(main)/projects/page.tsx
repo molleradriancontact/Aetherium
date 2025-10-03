@@ -8,7 +8,7 @@ import { ArchitectProject, useAppState } from "@/app/provider";
 import { Briefcase, Loader2, PlusCircle, ArrowRight, FileText } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { formatDistanceToNow } from 'date-fns';
 
@@ -22,7 +22,7 @@ export default function ProjectsPage() {
     if (!user || !firestore) return;
 
     const projectsColRef = collection(firestore, 'users', user.uid, 'projects');
-    const q = query(projectsColRef, orderBy('createdAt', 'desc'));
+    const q = query(projectsColRef, where('projectType', '==', 'analysis'), orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const userProjects = snapshot.docs.map(doc => {
@@ -59,14 +59,14 @@ export default function ProjectsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <PageHeader 
-          title="Projects"
+          title="Analysis Projects"
           subtitle="Manage your analysis projects or start a new one."
           className="mb-0"
         />
         <Link href="/" onClick={handleNewProject}>
             <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                New Project
+                New Analysis
             </Button>
         </Link>
       </div>

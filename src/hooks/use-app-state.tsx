@@ -5,6 +5,7 @@ import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest
 import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/suggest-frontend-changes-from-analysis';
 import type { UploadedFile } from '@/app/provider';
 import React, { createContext, useContext } from 'react';
+import type { Message } from '@/ai/flows/schemas';
 
 export type HistoryItem = { id: number, message: string; timestamp: Date };
 
@@ -26,6 +27,11 @@ export type AppState = {
   uploadedFiles: UploadedFile[];
   setUploadedFiles: (files: UploadedFile[]) => void;
   startAnalysis: (files: UploadedFile[]) => Promise<string>;
+  chatHistory: Message[];
+  startChat: (initialMessage: Message) => Promise<string>;
+  addChatMessage: (projectId: string, message: Message) => Promise<void>;
+  projectName: string;
+  projectType: 'analysis' | 'chat' | null;
 };
 
 export const AppStateContext = createContext<AppState | null>(null);
