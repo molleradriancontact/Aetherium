@@ -21,7 +21,6 @@ const saveDocumentTool = ai.defineTool(
   }
 );
 
-
 const chatFlow = ai.defineFlow(
   {
     name: 'chatFlow',
@@ -32,15 +31,18 @@ const chatFlow = ai.defineFlow(
     }),
   },
   async (messages) => {
-    const llmResponse = await ai.generate({
-      model: googleAI.model('gemini-1.5-flash'),
-      tools: [saveDocumentTool],
-      prompt: messages,
-      system: `You are a helpful AI assistant for the OS Architect application. 
+    const systemInstruction = `You are a helpful AI assistant for the OS Architect application. 
       Your primary role is to communicate with the user and help them analyze their code or text.
       If the user provides a block of text and asks you to "save this" or "create a document from this",
       use the saveDocument tool to pass the content for saving. Do not add any commentary when using the tool, just call it.
-      Otherwise, just respond as a helpful assistant.`,
+      Otherwise, just respond as a helpful assistant.`;
+
+    const llmResponse = await ai.generate({
+      model: googleAI.model('gemini-1.5-flash'),
+      tools: [saveDocumentTool],
+      system: systemInstruction,
+      prompt: messages.at(-1)?.content ?? '',
+      history: messages.slice(0, -1),
     });
 
     const choice = llmResponse.choices[0];
@@ -59,5 +61,6 @@ const chatFlow = ai.defineFlow(
 );
 
 export async function chat(messages: Message[]) {
+  if (messages.length === 0) return { content: '' };
   return chatFlow(messages);
 }
