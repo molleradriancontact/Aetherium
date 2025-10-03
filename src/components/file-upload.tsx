@@ -60,7 +60,7 @@ export function FileUpload() {
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
     const newFiles = acceptedFiles.filter(
-        (file) => !files.some((prevFile) => (file as any).path === (prevFile as any).path)
+        (file) => !files.some((prevFile) => prevFile.path === file.path)
     );
     setFiles((prevFiles) => [...prevFiles, ...newFiles]);
   }, [files]);
@@ -69,8 +69,8 @@ export function FileUpload() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
   const fileList = useMemo(() => files.map(file => (
-    <li key={(file as any).path} className="text-sm text-muted-foreground">
-      {(file as any).path}
+    <li key={file.path} className="text-sm text-muted-foreground">
+      {file.path}
     </li>
   )), [files]);
 
@@ -95,10 +95,10 @@ export function FileUpload() {
         const fileDataUris = await Promise.all(files.map(readFileAsDataURL));
 
         const codeSnippets = files.map((file, index) =>
-        `--- ${(file as any).path} ---\n${fileDataUris[index]}`
+        `--- ${file.path} ---\n${fileDataUris[index]}`
         ).join('\n\n');
 
-        const filePaths = files.map(f => ({ path: (f as any).path as string }));
+        const filePaths = files.map(f => ({ path: f.path as string }));
         const fileStructure = createTree(filePaths);
         
         addHistory('Starting AI analysis...');
@@ -113,11 +113,13 @@ export function FileUpload() {
         } else {
             addHistory(`Analysis failed: ${result.error}`);
             toast({ title: 'Analysis Failed', description: result.error, variant: 'destructive' });
+            setFiles([]); // Clear files on failure
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
         addHistory(`Operation failed: ${errorMessage}`);
         toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
+        setFiles([]); // Clear files on failure
     } finally {
         setIsLoading(false);
         setIsProcessing(false);
