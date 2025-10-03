@@ -25,7 +25,7 @@ Based on that report and the user's questions, provide clear, helpful, and conci
 `;
 
     const llmResponse = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
+      model: 'googleai/gemini-1.5-flash-latest',
       system: systemInstruction,
       prompt: messages.at(-1)?.content ?? '',
       history: messages.slice(0, -1),
