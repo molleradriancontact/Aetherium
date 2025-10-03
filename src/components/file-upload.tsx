@@ -93,6 +93,10 @@ export function FileUpload() {
     setIsLoading(true);
     
     try {
+        // This flow ensures we are always working on a new project for a new analysis
+        if (projectId) {
+          clearState();
+        }
         await createProject(`New Analysis - ${new Date().toLocaleString()}`);
         addHistory('Project created. Preparing files for analysis...');
         
@@ -117,13 +121,15 @@ export function FileUpload() {
         } else {
             addHistory(`Analysis failed: ${result.error}`);
             toast({ title: 'Analysis Failed', description: result.error, variant: 'destructive' });
-            setFiles([]); // Clear files on failure
+            clearState(); // Clear everything on failure
+            setFiles([]); // Also clear the file list from the UI
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
         addHistory(`Operation failed: ${errorMessage}`);
         toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
-        setFiles([]); // Clear files on failure
+        clearState(); // Clear everything on failure
+        setFiles([]); // Also clear the file list from the UI
     } finally {
         setIsLoading(false);
         setIsProcessing(false);
