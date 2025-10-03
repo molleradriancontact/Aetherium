@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -23,10 +22,8 @@ import {
   GitBranch,
   LogOut,
   FlaskConical,
-  Library,
-  Beaker,
+  Home,
   User,
-  Users,
   LayoutGrid,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
@@ -37,7 +34,7 @@ import { Loader2 } from 'lucide-react';
 
 
 const navItems = [
-  { href: '/', label: 'The Lab', icon: Beaker },
+  { href: '/', label: 'Home', icon: Home },
   { href: '/projects', label: 'Projects', icon: LayoutGrid },
   { href: '/analysis', label: 'Analysis Report', icon: FileText },
   { href: '/frontend', label: 'Frontend', icon: Code },

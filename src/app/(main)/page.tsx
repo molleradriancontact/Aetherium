@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatInterface } from "@/components/chat-interface";
 import { ProjectChatInterface } from "@/components/project-chat-interface";
 
-export default function LabPage() {
+export default function HomePage() {
   const { isHydrated, analysisReport, detailedStatus } = useAppState();
   const isLoading = !!detailedStatus;
 
@@ -28,8 +28,8 @@ export default function LabPage() {
   return (
     <div className="space-y-8">
       <PageHeader 
-        title="The Lab"
-        subtitle={!analysisReport ? "Upload your project files or chat directly with the AI to begin the analysis." : "Your project is ready. Chat with the AI to refine and build upon its analysis."}
+        title="Home"
+        subtitle={!analysisReport ? "Start a new project by uploading files or chatting with the AI." : "Welcome back. Continue working on your project."}
       />
       
       {!analysisReport ? (
