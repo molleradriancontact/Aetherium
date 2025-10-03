@@ -1,3 +1,4 @@
+
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -27,22 +28,13 @@ export function initializeFirebase() {
 }
 
 
-export function getSdks(firebaseApp: FirebaseApp) {
+export function getSdks(app?: FirebaseApp) {
+  const firebaseApp = app || (getApps().length ? getApp() : initializeApp(firebaseConfig));
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
     firestore: getFirestore(firebaseApp)
   };
-}
-
-// Server-side initialization for server actions
-let serverDb: any = null;
-const getServerDb = () => {
-    if (!serverDb) {
-        // This should be configured to connect to your actual Firestore instance
-        // For simplicity, we are not using Admin SDK here but in a real-app you should
-    }
-    return serverDb;
 }
 
 

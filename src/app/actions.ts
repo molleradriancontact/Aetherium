@@ -1,6 +1,11 @@
 
 'use server';
 
+import { doc, deleteDoc } from 'firebase/firestore';
+import { getSdks } from '@/firebase'; // Assuming a server-side init is available
+import { revalidatePath } from 'next/cache';
+
+
 type GeneratedFile = {
     path: string;
     content: string;
@@ -22,4 +27,31 @@ export async function applyCodeChanges(files: GeneratedFile[]) {
     // Since this is a server action, we can't directly trigger the tool,
     // but this simulates the point where the agent takes over.
     return { success: true };
+}
+
+
+export async function deleteProject(userId: string, projectId: string) {
+    if (!userId || !projectId) {
+        throw new Error("User ID and Project ID are required.");
+    }
+
+    try {
+        // We're using the client SDK flavor here for simplicity,
+        // but in a real-world server action you'd use the Admin SDK.
+        // The getSdks function will need to be adapted for server-side use.
+        const { firestore } = getSdks();
+        const projectDocRef = doc(firestore, 'users', userId, 'projects', projectId);
+        await deleteDoc(projectDocRef);
+        
+        // Revalidate the paths to trigger a data refresh on the client
+        revalidatePath('/projects');
+        revalidatePath('/chats');
+
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete project:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        // Throwing the error to be caught by the client-side caller
+        throw new Error(errorMessage);
+    }
 }

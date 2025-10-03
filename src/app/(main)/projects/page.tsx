@@ -5,18 +5,25 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase } from "@/firebase";
 import { ArchitectProject, useAppState } from "@/app/provider";
-import { Briefcase, Loader2, PlusCircle, ArrowRight, FileText } from "lucide-react";
+import { Briefcase, Loader2, PlusCircle, ArrowRight, FileText, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { formatDistanceToNow } from 'date-fns';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { deleteProject } from "@/app/actions";
 
 export default function ProjectsPage() {
   const { user, firestore } = useFirebase();
   const { clearState, isHydrated, projectId, setProjectId } = useAppState();
   const [projects, setProjects] = useState<ArchitectProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, startDeleting] = useTransition();
+  const [projectToDelete, setProjectToDelete] = useState<ArchitectProject | null>(null);
+  const { toast } = useToast();
+
 
   useEffect(() => {
     if (!user || !firestore) return;
@@ -47,6 +54,31 @@ export default function ProjectsPage() {
     clearState(true);
   };
   
+  const handleDeleteConfirm = () => {
+    if (!projectToDelete || !user) return;
+    startDeleting(async () => {
+        try {
+            await deleteProject(user.uid, projectToDelete.id);
+            toast({
+                title: "Project Deleted",
+                description: `"${projectToDelete.name}" has been permanently deleted.`
+            });
+            if (projectId === projectToDelete.id) {
+                clearState(false);
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            toast({
+                title: "Deletion Failed",
+                description: errorMessage,
+                variant: "destructive"
+            });
+        } finally {
+            setProjectToDelete(null);
+        }
+    })
+  }
+
   if (!isHydrated || isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -84,10 +116,17 @@ export default function ProjectsPage() {
           {projects.map(p => (
             <Card key={p.id} className="flex flex-col">
               <CardHeader>
-                <CardTitle className="text-xl">{p.name}</CardTitle>
-                <CardDescription>
-                  Created {formatDistanceToNow(p.createdAt, { addSuffix: true })}
-                </CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                        <CardTitle className="text-xl">{p.name}</CardTitle>
+                        <CardDescription>
+                        Created {formatDistanceToNow(p.createdAt, { addSuffix: true })}
+                        </CardDescription>
+                    </div>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => setProjectToDelete(p)}>
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
               </CardHeader>
               <CardContent className="flex-grow">
                 <div className="flex items-center text-sm text-muted-foreground">
@@ -107,6 +146,25 @@ export default function ProjectsPage() {
           ))}
         </div>
       )}
+
+      <AlertDialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the project
+                <span className="font-semibold text-foreground">"{projectToDelete?.name}"</span>.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Delete
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

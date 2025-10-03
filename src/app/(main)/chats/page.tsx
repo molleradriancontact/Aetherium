@@ -5,14 +5,16 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase } from "@/firebase";
 import { ArchitectProject, useAppState } from "@/app/provider";
-import { MessageSquare, Loader2, PlusCircle, ArrowRight, Edit, Check, X } from "lucide-react";
+import { MessageSquare, Loader2, PlusCircle, ArrowRight, Edit, Check, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
-import { useEffect, useState, useRef } from "react";
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { useEffect, useState, useRef, useTransition } from "react";
 import { formatDistanceToNow } from 'date-fns';
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { deleteProject } from "@/app/actions";
 
 export default function ChatsPage() {
   const { user, firestore } = useFirebase();
@@ -23,6 +25,8 @@ export default function ChatsPage() {
   const [newName, setNewName] = useState("");
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [chatToDelete, setChatToDelete] = useState<ArchitectProject | null>(null);
+  const [isDeleting, startDeleting] = useTransition();
 
   useEffect(() => {
     if (!user || !firestore) return;
@@ -84,6 +88,28 @@ export default function ChatsPage() {
     }
   };
   
+  const handleDeleteConfirm = () => {
+    if (!chatToDelete || !user) return;
+    startDeleting(async () => {
+        try {
+            await deleteProject(user.uid, chatToDelete.id);
+            toast({
+                title: "Chat Deleted",
+                description: `The chat "${chatToDelete.name}" has been deleted.`
+            });
+        } catch (error) {
+             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            toast({
+                title: "Deletion Failed",
+                description: errorMessage,
+                variant: "destructive"
+            });
+        } finally {
+            setChatToDelete(null);
+        }
+    })
+  }
+
   if (!isHydrated || isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -135,10 +161,15 @@ export default function ChatsPage() {
                     </div>
                 ) : (
                     <div className="flex items-center justify-between">
-                        <CardTitle className="text-xl truncate">{p.name}</CardTitle>
-                        <Button variant="ghost" size="icon" onClick={() => startRename(p)}>
-                            <Edit className="h-4 w-4" />
-                        </Button>
+                        <CardTitle className="text-xl truncate flex-1">{p.name}</CardTitle>
+                        <div className="flex">
+                            <Button variant="ghost" size="icon" onClick={() => startRename(p)}>
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => setChatToDelete(p)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
                 )}
                 <CardDescription>
@@ -162,6 +193,25 @@ export default function ChatsPage() {
           ))}
         </div>
       )}
+
+      <AlertDialog open={!!chatToDelete} onOpenChange={(open) => !open && setChatToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the chat
+                <span className="font-semibold text-foreground">"{chatToDelete?.name}"</span>.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Delete
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
