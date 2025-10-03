@@ -78,6 +78,13 @@
           "items": {
             "$ref": "#/entities/HistoryItem"
           }
+        },
+        "uploadedFiles": {
+            "type": "array",
+            "description": "A list of files uploaded by the user for analysis.",
+            "items": {
+                "$ref": "#/entities/UploadedFile"
+            }
         }
       },
       "required": [
@@ -104,6 +111,22 @@
         }
       },
       "required": ["id", "message", "timestamp"]
+    },
+    "UploadedFile": {
+      "title": "UploadedFile",
+      "type": "object",
+      "description": "Represents a single file uploaded by the user.",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The full path of the uploaded file."
+        },
+        "content": {
+          "type": "string",
+          "description": "The content of the file, encoded as a data URI."
+        }
+      },
+      "required": ["path", "content"]
     }
   },
   "auth": {

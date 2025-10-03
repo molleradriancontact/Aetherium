@@ -3,6 +3,7 @@
 
 import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest-backend-changes-from-analysis';
 import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/suggest-frontend-changes-from-analysis';
+import type { UploadedFile } from '@/app/provider';
 import React, { createContext, useContext } from 'react';
 
 export type HistoryItem = { id: number, message: string; timestamp: Date };
@@ -19,9 +20,11 @@ export type AppState = {
   setBackendSuggestions: (suggestions: SuggestBackendChangesFromAnalysisOutput | null) => void;
   history: HistoryItem[];
   addHistory: (message: string) => void;
-  clearState: () => void;
-  createProject: (name: string) => Promise<string>;
+  clearState: (forceNav?: boolean) => void;
+  createProject: (name: string, files: UploadedFile[]) => Promise<string>;
   projectId: string | null;
+  uploadedFiles: UploadedFile[];
+  setUploadedFiles: (files: UploadedFile[]) => void;
 };
 
 export const AppStateContext = createContext<AppState | null>(null);

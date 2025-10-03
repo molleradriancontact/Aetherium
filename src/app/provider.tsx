@@ -8,6 +8,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFirebase } from '@/firebase'; // Using useFirebase now
 import { collection, doc, onSnapshot, serverTimestamp, setDoc, query, orderBy, limit } from 'firebase/firestore';
 
+export interface UploadedFile {
+    path: string;
+    content: string;
+}
+
 // This interface now aligns better with the JSON schema
 export interface ArchitectProject {
     id: string;
@@ -18,6 +23,7 @@ export interface ArchitectProject {
     frontendSuggestions?: SuggestFrontendChangesFromAnalysisOutput | null;
     backendSuggestions?: SuggestBackendChangesFromAnalysisOutput | null;
     history?: HistoryItem[];
+    uploadedFiles?: UploadedFile[];
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -31,6 +37,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [frontendSuggestions, setFrontendSuggestions] = useState<SuggestFrontendChangesFromAnalysisOutput | null>(null);
   const [backendSuggestions, setBackendSuggestions] = useState<SuggestBackendChangesFromAnalysisOutput | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   
   const projectRef = useRef<any>(null);
   const isUpdatingRef = useRef(false);
@@ -63,6 +70,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setAnalysisReport(projectData.analysisReport || null);
         setFrontendSuggestions(projectData.frontendSuggestions || null);
         setBackendSuggestions(projectData.backendSuggestions || null);
+        setUploadedFiles(projectData.uploadedFiles || []);
         
         // Firestore timestamps need to be converted to JS Dates
         const historyWithDates = (projectData.history || []).map(h => ({...h, timestamp: (h.timestamp as any).toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)}));
@@ -92,14 +100,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       analysisReport,
       frontendSuggestions,
       backendSuggestions,
-      history
+      history,
+      uploadedFiles,
     };
     
     // Using { merge: true } to avoid overwriting fields
     setDoc(projectRef.current, dataToSave, { merge: true })
       .catch(console.error);
 
-  }, [analysisReport, frontendSuggestions, backendSuggestions, history, isLoading]);
+  }, [analysisReport, frontendSuggestions, backendSuggestions, history, uploadedFiles, isLoading]);
 
 
   const addHistory = useCallback((message: string) => {
@@ -113,12 +122,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFrontendSuggestions(null);
     setBackendSuggestions(null);
     setHistory([]);
+    setUploadedFiles([]);
     if (resetLoading) {
       setIsLoading(false);
     }
   }, []);
 
-  const createProject = async (name: string): Promise<string> => {
+  const createProject = async (name: string, files: UploadedFile[]): Promise<string> => {
     if (!user || !firestore) throw new Error("User not authenticated or Firestore not available");
     
     const newProjectRef = doc(collection(firestore, 'users', user.uid, 'projects'));
@@ -128,11 +138,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       name,
       createdAt: serverTimestamp(),
       history: [],
+      uploadedFiles: files,
     };
 
     await setDoc(newProjectRef, newProject);
     projectRef.current = newProjectRef;
     setProjectId(newProjectRef.id);
+    setUploadedFiles(files);
     return newProjectRef.id;
   };
 
@@ -151,6 +163,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearState,
     createProject,
     projectId,
+    uploadedFiles,
+    setUploadedFiles,
   };
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

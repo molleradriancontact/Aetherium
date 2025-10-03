@@ -10,6 +10,7 @@ import { analyzeFilesAction } from '@/app/actions';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ScrollArea } from './ui/scroll-area';
+import { UploadedFile } from '@/app/provider';
 
 const readFileAsDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -97,10 +98,16 @@ export function FileUpload() {
     }
 
     try {
-        await createProject(`New Analysis - ${new Date().toLocaleString()}`);
         addHistory('Project created. Preparing files for analysis...');
         
         const fileDataUris = await Promise.all(files.map(readFileAsDataURL));
+
+        const uploadedFiles: UploadedFile[] = files.map((file, index) => ({
+          path: file.path!,
+          content: fileDataUris[index]
+        }));
+
+        await createProject(`New Analysis - ${new Date().toLocaleString()}`, uploadedFiles);
 
         const codeSnippets = files.map((file, index) =>
         `--- ${file.path} ---\n${fileDataUris[index]}`
