@@ -35,9 +35,16 @@ export async function deleteProject(userId: string, projectId: string) {
         throw new Error("User ID and Project ID are required.");
     }
 
-    // Initialize a temporary admin app for this action
+    // Initialize a temporary admin app for this action.
+    // By not providing credentials, it will use the Application Default Credentials.
     const appName = `delete-project-${Date.now()}`;
-    const tempApp = getApps().find(app => app.name === appName) || initializeApp({}, appName);
+    let tempApp: App;
+    if (getApps().some(app => app.name === appName)) {
+        tempApp = getApp(appName);
+        await deleteApp(tempApp); // Delete if it somehow still exists
+    }
+    tempApp = initializeApp({}, appName);
+
     const adminDb = getFirestore(tempApp);
 
     try {
