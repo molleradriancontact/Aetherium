@@ -60,7 +60,7 @@ const prompt = ai.definePrompt({
   This initial report is the blueprint for the entire prototyping process. Be thorough and clear.
 
   File Content:
-  {{codeSnippets}}
+  {{{codeSnippets}}}
   `,
 });
 
