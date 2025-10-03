@@ -18,18 +18,15 @@ export function ChatInterface() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
 
   const { user } = useFirebase();
   const { toast } = useToast();
   const { startAnalysis } = useAppState();
 
   const scrollToBottom = () => {
-    if (scrollAreaRef.current) {
-        scrollAreaRef.current.scrollTo({
-            top: scrollAreaRef.current.scrollHeight,
-            behavior: 'smooth'
-        });
+    if (scrollAreaViewportRef.current) {
+      scrollAreaViewportRef.current.scrollTop = scrollAreaViewportRef.current.scrollHeight;
     }
   };
 
@@ -114,8 +111,8 @@ export function ChatInterface() {
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        <ScrollArea className="h-96 w-full rounded-md border p-4" ref={scrollAreaRef}>
-          <div className="space-y-4">
+        <ScrollArea className="h-96 w-full rounded-md border" viewportRef={scrollAreaViewportRef}>
+          <div className="space-y-4 p-4">
             {messages.map((message, index) => (
               <div key={index} className={`group/message flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
                 {message.role === 'model' && <Bot className="h-6 w-6 text-primary flex-shrink-0" />}
