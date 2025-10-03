@@ -59,19 +59,18 @@ export function FileUpload() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
-    setFiles(prevFiles => {
-        const newFiles = acceptedFiles.filter(
-            (file) => !prevFiles.some((prevFile) => prevFile.path === file.path)
-        );
-        return [...prevFiles, ...newFiles];
-    });
-  }, []);
+    const newFiles = acceptedFiles.filter(
+        (file) => !files.some((prevFile) => (file as any).path === (prevFile as any).path)
+    );
+    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+  }, [files]);
+
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
   const fileList = useMemo(() => files.map(file => (
-    <li key={file.path} className="text-sm text-muted-foreground">
-      {file.path}
+    <li key={(file as any).path} className="text-sm text-muted-foreground">
+      {(file as any).path}
     </li>
   )), [files]);
 
@@ -96,10 +95,10 @@ export function FileUpload() {
         const fileDataUris = await Promise.all(files.map(readFileAsDataURL));
 
         const codeSnippets = files.map((file, index) =>
-        `--- ${file.path} ---\n${fileDataUris[index]}`
+        `--- ${(file as any).path} ---\n${fileDataUris[index]}`
         ).join('\n\n');
 
-        const filePaths = files.map(f => ({ path: f.path as string }));
+        const filePaths = files.map(f => ({ path: (f as any).path as string }));
         const fileStructure = createTree(filePaths);
         
         addHistory('Starting AI analysis...');
