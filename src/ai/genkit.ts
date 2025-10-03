@@ -5,7 +5,7 @@ import {googleAI} from '@genkit-ai/google-genai';
 
 export const ai = genkit({
   plugins: [
-    googleAI({apiKey: process.env.GEMINI_API_KEY, apiVersion: 'v1'}),
+    googleAI({apiKey: process.env.GEMINI_API_KEY, apiVersion: 'v1beta'}),
     // firebase(), // Temporarily disabled to resolve build/runtime errors
   ],
   // flowStateStore: 'firebase',

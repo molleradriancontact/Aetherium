@@ -3,7 +3,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 import { Message, MessageSchema } from './schemas';
 
 const saveDocumentTool = ai.defineTool(
