@@ -27,7 +27,7 @@ export default function HistoryPage() {
             <CardDescription className="mt-2">
                 Perform an analysis to start building your history log.
             </CardDescription>
-            <Link href="/" passHref legacyBehavior>
+            <Link href="/" passHref>
                 <Button className="mt-6">Go to Dashboard</Button>
             </Link>
         </Card>

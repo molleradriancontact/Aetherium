@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -534,7 +535,7 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement,
+  HTMLElement,
   React.ComponentProps<"button"> & {
     asChild?: boolean
     isActive?: boolean
@@ -558,7 +559,7 @@ const SidebarMenuButton = React.forwardRef<
 
     const button = (
       <Comp
-        ref={ref}
+        ref={ref as any}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
