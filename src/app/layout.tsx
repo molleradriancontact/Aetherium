@@ -4,8 +4,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'OS Architect',
-  description: 'Dynamically build your OS from your knowledge base.',
+  title: 'Aetherium',
+  description: 'Dynamically build your application from your knowledge base.',
 };
 
 export default function RootLayout({

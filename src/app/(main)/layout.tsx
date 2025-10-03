@@ -85,7 +85,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           <Link href="/" className="flex items-center gap-2 group/logo" onClick={handleLogoClick}>
             <Logo className="size-8 text-primary transition-transform group-hover/logo:rotate-[-15deg]" />
             <span className="font-headline text-xl font-semibold text-primary group-data-[collapsible=icon]:hidden">
-              OS Architect
+              Aetherium
             </span>
           </Link>
         </SidebarHeader>
