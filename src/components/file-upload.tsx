@@ -60,9 +60,10 @@ export function FileUpload() {
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
     // If a project is already loaded, we clear it to start a new one.
+    // This will be a new project, so we clear the UI to reflect that.
     if (projectId) {
       clearState();
-      setFiles([]); // Also clear the local file list
+      setFiles([]);
     }
     const newFiles = acceptedFiles.filter(
         (file) => !files.some((prevFile) => prevFile.path === file.path)
@@ -81,6 +82,7 @@ export function FileUpload() {
 
   const handleClear = () => {
     setFiles([]);
+    // Clearing the files should also clear the project context if one is loaded.
     if (projectId) {
       clearState();
     }
@@ -97,9 +99,6 @@ export function FileUpload() {
     
     try {
         // This flow ensures we are always working on a new project for a new analysis
-        if (projectId) {
-          clearState();
-        }
         await createProject(`New Analysis - ${new Date().toLocaleString()}`);
         addHistory('Project created. Preparing files for analysis...');
         
