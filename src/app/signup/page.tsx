@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, User } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -36,17 +36,16 @@ export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleUserCreation = (user: any) => {
-    if (user) {
-        // Create a user document in Firestore
+  const handleUserCreation = (user: User | null) => {
+    if (user && firestore) {
         const userRef = doc(firestore, 'users', user.uid);
         const userData = {
           id: user.uid,
           email: user.email,
-          username: user.email?.split('@')[0], // Use email prefix as username
+          username: user.displayName || user.email?.split('@')[0],
           registrationDate: new Date().toISOString(),
         };
-        // Use non-blocking write with error handling
+        // Use non-blocking write with error handling and merge option
         setDocumentNonBlocking(userRef, userData, { merge: true });
       }
       router.push('/');
@@ -61,6 +60,7 @@ export default function SignUpPage() {
       });
       return;
     }
+    if (!auth) return;
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -77,6 +77,7 @@ export default function SignUpPage() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!auth) return;
     setIsGoogleLoading(true);
     try {
       const provider = new GoogleAuthProvider();
