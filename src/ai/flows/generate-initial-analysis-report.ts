@@ -47,18 +47,20 @@ const prompt = ai.definePrompt({
   name: 'generateInitialAnalysisReportPrompt',
   input: {schema: GenerateInitialAnalysisReportInputSchema},
   output: {schema: GenerateInitialAnalysisReportOutputSchema},
-  prompt: `You are an AI expert in software architecture and application design.
+  prompt: `You are an AI expert in software architecture and information analysis.
 
-  Your task is to analyze the content of the user's uploaded files and generate a plan for a web application based on the knowledge within them.
-  The user is not providing source code; they are providing documents (like specifications, experiment steps, business plans, etc.). The content may be in various formats, including data URIs for file types like DOCX or PDF. You must interpret this content.
+  Your task is to analyze the content of the user's uploaded files—whether it's one file or many, organized or not—and produce a structured, helpful analysis. The content might be specifications, raw data, business plans, or even just a collection of notes.
 
   From the provided content, you must:
-  1.  Understand the core purpose and goals described in the documents.
-  2.  Propose a clear, high-level concept for a web application that would help the user achieve those goals.
-  3.  Outline the key features and structure of this proposed application.
-  4.  Provide a summary of your understanding of the user's documents and how the proposed application addresses their needs.
+  1.  Thoroughly analyze the text and data. The content may be in various formats, including data URIs for file types like DOCX or PDF. You must interpret this content.
+  2.  Identify and summarize the key topics, concepts, and entities present in the documents.
+  3.  Structure this summary in a clear, organized manner. Use headings, lists, and other formatting to make the information easy to digest.
+  4.  If the content suggests a clear purpose or goal, propose a high-level concept for a web application that would help the user achieve it. If the content is too disparate or abstract, focus on providing an excellent, structured summary of the information instead.
+  
+  This report is the blueprint for the entire prototyping process. Be thorough, clear, and flexible in your analysis.
 
-  This initial report is the blueprint for the entire prototyping process. Be thorough and clear.
+  File Structure:
+  {{{fileStructure}}}
 
   File Content:
   {{{codeSnippets}}}
@@ -73,6 +75,9 @@ const generateInitialAnalysisReportFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
+    if (!output?.report) {
+      throw new Error("The AI failed to generate a valid analysis report. The output was empty.");
+    }
     return output!;
   }
 );
