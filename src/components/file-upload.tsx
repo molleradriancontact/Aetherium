@@ -80,10 +80,7 @@ export function FileUpload() {
 
   const handleClear = () => {
     setFiles([]);
-    if (projectId) {
-        clearState();
-    }
-  }
+  };
 
   const handleAnalyze = async () => {
     if (files.length === 0) {
