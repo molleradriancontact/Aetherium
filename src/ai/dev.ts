@@ -1,6 +1,9 @@
 import { config } from 'dotenv';
 config();
 
+import * as admin from 'firebase-admin';
+admin.initializeApp();
+
 import '@/ai/flows/generate-initial-analysis-report.ts';
 import '@/ai/flows/suggest-backend-changes-from-analysis.ts';
 import '@/ai/flows/suggest-frontend-changes-from-analysis.ts';
