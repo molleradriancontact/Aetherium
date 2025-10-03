@@ -5,10 +5,10 @@ import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest
 import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/suggest-frontend-changes-from-analysis';
 import { AppStateContext, HistoryItem } from '@/hooks/use-app-state';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useFirebase, useUser } from '@/firebase';
+import { useFirebase } from '@/firebase'; // Using useFirebase now
 import { collection, doc, onSnapshot, serverTimestamp, setDoc, query, orderBy, limit } from 'firebase/firestore';
 
-// Define the shape of a project document in Firestore
+// This interface now aligns better with the JSON schema
 export interface ArchitectProject {
     id: string;
     userId: string;
@@ -21,8 +21,7 @@ export interface ArchitectProject {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
+  const { user, isUserLoading, firestore } = useFirebase();
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +41,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Effect to load the most recent project for the current user
   useEffect(() => {
-    if (isUserLoading || !user) {
+    if (isUserLoading || !user || !firestore) {
       if (!isUserLoading) {
         setIsLoading(false);
         clearState();
@@ -65,7 +64,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setFrontendSuggestions(projectData.frontendSuggestions || null);
         setBackendSuggestions(projectData.backendSuggestions || null);
         
-        const historyWithDates = (projectData.history || []).map(h => ({...h, timestamp: (h.timestamp as any).toDate()}));
+        // Firestore timestamps need to be converted to JS Dates
+        const historyWithDates = (projectData.history || []).map(h => ({...h, timestamp: (h.timestamp as any).toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)}));
         setHistory(historyWithDates);
 
         projectRef.current = doc(firestore, 'users', user.uid, 'projects', projectDoc.id);
@@ -92,9 +92,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       analysisReport,
       frontendSuggestions,
       backendSuggestions,
-      history: history.map(h => ({...h, timestamp: h.timestamp.toISOString() as any}))
+      history
     };
     
+    // Using { merge: true } to avoid overwriting fields
     setDoc(projectRef.current, dataToSave, { merge: true })
       .catch(console.error);
 
@@ -118,7 +119,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createProject = async (name: string): Promise<string> => {
-    if (!user) throw new Error("User not authenticated");
+    if (!user || !firestore) throw new Error("User not authenticated or Firestore not available");
     
     const newProjectRef = doc(collection(firestore, 'users', user.uid, 'projects'));
     const newProject: ArchitectProject = {

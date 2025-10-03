@@ -76,13 +76,7 @@
         "history": {
           "type": "array",
           "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "number" },
-              "message": { "type": "string" },
-              "timestamp": { "type": "string", "format": "date-time" }
-            },
-            "required": ["id", "message", "timestamp"]
+            "$ref": "#/entities/HistoryItem"
           }
         }
       },
@@ -92,6 +86,24 @@
         "name",
         "createdAt"
       ]
+    },
+    "HistoryItem": {
+      "title": "HistoryItem",
+      "type": "object",
+      "description": "A single entry in the project's history log.",
+      "properties": {
+        "id": {
+          "type": "number"
+        },
+        "message": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "message", "timestamp"]
     }
   },
   "auth": {
@@ -101,27 +113,17 @@
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Collection to store user profiles."
-        }
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
       },
-      {
-        "path": "/users/{userId}/projects/{projectId}",
-        "definition": {
-          "entityName": "ArchitectProject",
-          "schema": {
-            "$ref": "#/backend/entities/ArchitectProject"
-          },
-          "description": "Collection to store OS Architect projects for each user."
-        }
-      }
-    ]
+      "description": "Stores user profile information."
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": {
+        "$ref": "#/entities/ArchitectProject"
+      },
+      "description": "Stores the analysis projects for each user."
+    }
   }
 }
