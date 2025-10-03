@@ -31,18 +31,20 @@ export function FileUpload() {
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
     setFiles((prevFiles) => {
-      const newFiles = acceptedFiles.map(file => {
-          const fileWithPath = file as FileWithPath;
-          if (!fileWithPath.path) {
-              fileWithPath.path = file.name;
-          }
-          return fileWithPath;
-      }).filter(
+      const newFiles = acceptedFiles.filter(
         (file) => !prevFiles.some((prevFile) => prevFile.path === file.path && prevFile.size === file.size)
       );
+      
+      if (newFiles.length < acceptedFiles.length) {
+        toast({
+            title: "Duplicate files skipped",
+            description: "Some files were already in the upload list."
+        })
+      }
+
       return [...prevFiles, ...newFiles];
     });
-  }, []);
+  }, [toast]);
 
   const handleFileNameChange = (index: number, newPath: string) => {
     setFiles(prevFiles => {
@@ -102,7 +104,7 @@ export function FileUpload() {
         disabled={isProcessing}
       />
     </li>
-  )), [files, handleFileNameChange, isProcessing]);
+  )), [files, isProcessing]);
 
   const handleClear = () => {
     setFiles([]);
