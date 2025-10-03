@@ -57,7 +57,7 @@ const suggestFrontendChangesFromAnalysisFlow = ai.defineFlow(
     outputSchema: SuggestFrontendChangesFromAnalysisOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
+    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash-latest') });
     return output!;
   }
 );
