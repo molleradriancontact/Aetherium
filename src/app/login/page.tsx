@@ -11,8 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, linkWithCredential, AuthError, getAdditionalUserInfo, UserCredential } from 'firebase/auth';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
+
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
@@ -33,36 +36,72 @@ export default function LoginPage() {
   const { auth } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
+  
+  const [pendingGoogleCred, setPendingGoogleCred] = useState<UserCredential | null>(null);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      if (pendingGoogleCred && userCredential.user) {
+        const googleCred = GoogleAuthProvider.credentialFromResult(pendingGoogleCred);
+        if (googleCred) {
+          await linkWithCredential(userCredential.user, googleCred);
+          toast({
+            title: "Accounts Linked",
+            description: "Your Google account is now linked. You can sign in with Google from now on."
+          });
+        }
+      }
       router.push('/');
+
     } catch (error: any) {
+      const authError = error as AuthError;
       toast({
         variant: 'destructive',
         title: 'Sign-in failed.',
-        description: error.message,
+        description: authError.message,
       });
     } finally {
       setIsLoading(false);
+      setPendingGoogleCred(null);
     }
   };
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+       // This is a new user or a returning user who already used Google.
+      if (getAdditionalUserInfo(result)?.isNewUser) {
+        // Handle new user creation logic if needed (e.g. creating a user document)
+      }
       router.push('/');
     } catch (error: any) {
-       toast({
-        variant: 'destructive',
-        title: 'Google Sign-in failed.',
-        description: error.message,
-      });
+      const authError = error as AuthError;
+      if (authError.code === 'auth/account-exists-with-different-credential' && authError.customData) {
+        const pendingCred = GoogleAuthProvider.credentialFromError(authError);
+        const email = authError.customData.email;
+        if (email && pendingCred) {
+          setEmail(email as string);
+          setPendingGoogleCred({
+            user: { email: email } as any, // Mock user object for credential
+            credential: pendingCred,
+            providerId: GoogleAuthProvider.PROVIDER_ID,
+          } as UserCredential);
+        } else {
+             toast({ variant: 'destructive', title: 'Google Sign-in failed.', description: 'Could not retrieve email for account linking.' });
+        }
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Google Sign-in failed.',
+          description: authError.message,
+        });
+      }
     } finally {
         setIsGoogleLoading(false);
     }
@@ -76,6 +115,16 @@ export default function LoginPage() {
           <CardDescription>Enter your email below to login to your account.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+            {pendingGoogleCred && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Link Your Google Account</AlertTitle>
+                <AlertDescription>
+                  This email is already registered. Sign in with your password to link your Google account.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Button variant="outline" onClick={handleGoogleSignIn} disabled={isGoogleLoading || isLoading}>
                 {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon className="mr-2" />}
                 Sign in with Google
@@ -120,7 +169,7 @@ export default function LoginPage() {
           <CardFooter className="flex flex-col">
             <Button type="submit" className="w-full" disabled={isGoogleLoading || isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign In
+              {pendingGoogleCred ? "Sign In & Link" : "Sign In"}
             </Button>
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{' '}
