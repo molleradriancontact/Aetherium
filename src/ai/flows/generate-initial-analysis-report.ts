@@ -18,7 +18,7 @@ const GenerateInitialAnalysisReportInputSchema = z.object({
   codeSnippets: z
     .string()
     .describe(
-      'A string containing representative code snippets from the uploaded files.'
+      'A string containing the content from the uploaded files.'
     ),
 });
 export type GenerateInitialAnalysisReportInput = z.infer<
@@ -29,7 +29,7 @@ const GenerateInitialAnalysisReportOutputSchema = z.object({
   report: z
     .string()
     .describe(
-      'A detailed analysis report highlighting potential improvements and code smells.'
+      'A detailed analysis of the provided documents, outlining a plan for a web application based on the content.'
     ),
 });
 export type GenerateInitialAnalysisReportOutput = z.infer<
@@ -46,15 +46,20 @@ const prompt = ai.definePrompt({
   name: 'generateInitialAnalysisReportPrompt',
   input: {schema: GenerateInitialAnalysisReportInputSchema},
   output: {schema: GenerateInitialAnalysisReportOutputSchema},
-  prompt: `You are an AI expert in system architecture.
+  prompt: `You are an AI expert in software architecture and application design.
 
-  Analyze the following file structure and code snippets to generate a detailed report.
-  Highlight potential improvements, code smells, and areas for optimization. Provide actionable suggestions to improve the system's architecture and code quality.
+  Your task is to analyze the content of the user's uploaded files and generate a plan for a web application based on the knowledge within them.
+  The user is not providing source code; they are providing documents (like specifications, experiment steps, business plans, etc.).
 
-  File Structure:
-  {{fileStructure}}
+  From the provided content, you must:
+  1.  Understand the core purpose and goals described in the documents.
+  2.  Propose a clear, high-level concept for a web application that would help the user achieve those goals.
+  3.  Outline the key features and structure of this proposed application.
+  4.  Provide a summary of your understanding of the user's documents and how the proposed application addresses their needs.
 
-  Code Snippets:
+  This initial report is the blueprint for the entire prototyping process. Be thorough and clear.
+
+  File Content:
   {{codeSnippets}}
   `,
 });
