@@ -11,11 +11,12 @@ function initializeAdminApp(): App {
         return getApp('admin');
     }
 
-    // In a real production environment, you would use applicationDefault()
-    // or another secure way to provide credentials. For this environment,
-    // we assume the necessary environment variables are set.
+    const creds = process.env.GOOGLE_APPLICATION_CREDENTIALS
+        ? credential.applicationDefault()
+        : undefined;
+
     return initializeApp({
-        // projectId, etc. might be auto-discovered from the environment
+        credential: creds,
     }, 'admin');
 }
 
