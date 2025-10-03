@@ -11,38 +11,6 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ScrollArea } from './ui/scroll-area';
 
-function createTree(files: { path: string }[]): string {
-    const root: any = {};
-    for (const file of files) {
-      const path = file.path;
-      if (typeof path !== 'string') continue;
-  
-      let current = root;
-      const parts = path.split('/');
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        if (!current[part]) {
-          current[part] = i === parts.length - 1 ? null : {};
-        }
-        current = current[part];
-      }
-    }
-  
-    function formatTree(node: any, prefix = ''): string {
-      const entries = Object.entries(node);
-      let result = '';
-      entries.forEach(([key, value], index) => {
-        const isLast = index === entries.length - 1;
-        result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
-        if (value !== null) {
-          result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
-        }
-      });
-      return result;
-    }
-    return formatTree(root);
-}
-
 const readFileAsDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -53,7 +21,7 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 };
 
 export function FileUpload() {
-  const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, createProject } = useAppState();
+  const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, createProject, clearState } = useAppState();
   const { toast } = useToast();
   const [files, setFiles] = useState<FileWithPath[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -70,6 +38,10 @@ export function FileUpload() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
     onDrop,
+    getFilesFromEvent: async event => {
+        const files = Array.from(event.target.files);
+        return files as FileWithPath[];
+    }
   });
 
   const fileList = useMemo(() => files.map(file => (
@@ -90,7 +62,40 @@ export function FileUpload() {
 
     setIsProcessing(true);
     setIsLoading(true);
+    clearState(false);
     
+    function createTree(files: { path: string }[]): string {
+        const root: any = {};
+        for (const file of files) {
+          const path = file.path;
+          if (typeof path !== 'string') continue;
+      
+          let current = root;
+          const parts = path.split('/');
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (!current[part]) {
+              current[part] = i === parts.length - 1 ? null : {};
+            }
+            current = current[part];
+          }
+        }
+      
+        function formatTree(node: any, prefix = ''): string {
+          const entries = Object.entries(node);
+          let result = '';
+          entries.forEach(([key, value], index) => {
+            const isLast = index === entries.length - 1;
+            result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
+            if (value !== null) {
+              result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
+            }
+          });
+          return result;
+        }
+        return formatTree(root);
+    }
+
     try {
         await createProject(`New Analysis - ${new Date().toLocaleString()}`);
         addHistory('Project created. Preparing files for analysis...');
