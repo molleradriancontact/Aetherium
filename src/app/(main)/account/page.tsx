@@ -1,10 +1,9 @@
-
 'use client';
 
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
-import { Loader2, User, Mail, Calendar, Save } from "lucide-react";
+import { Loader2, Mail, Calendar, Save } from "lucide-react";
 import { doc, updateDoc } from "firebase/firestore";
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,8 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
+import React from "react";
+import { updateProfile } from "firebase/auth";
 
 const profileSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(20, "Username must be at most 20 characters"),
@@ -29,7 +30,7 @@ interface UserProfile {
 }
 
 export default function AccountPage() {
-    const { user, firestore } = useFirebase();
+    const { user, auth, firestore } = useFirebase();
     const { toast } = useToast();
 
     const userDocRef = useMemoFirebase(() => {
@@ -49,13 +50,20 @@ export default function AccountPage() {
     React.useEffect(() => {
         if (userProfile?.username) {
             setValue('username', userProfile.username);
+        } else if (user?.displayName) {
+             setValue('username', user.displayName);
         }
-    }, [userProfile, setValue]);
+    }, [userProfile, user, setValue]);
 
     const onSubmit = async (data: ProfileFormValues) => {
-        if (!userDocRef) return;
+        if (!userDocRef || !auth.currentUser) return;
         try {
+            // Update Firestore document
             await updateDoc(userDocRef, { username: data.username });
+            
+            // Update Firebase Auth profile
+            await updateProfile(auth.currentUser, { displayName: data.username });
+
             toast({
                 title: "Profile Updated",
                 description: "Your username has been successfully updated.",
@@ -130,7 +138,7 @@ export default function AccountPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Update Username</CardTitle>
-                    <CardDescription>Change the username associated with your account.</CardDescription>
+                    <CardDescription>Change the username associated with your account. This is separate from your email.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

@@ -117,7 +117,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                     <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-                    <span className="text-sm font-medium truncate">{user.email}</span>
+                    <span className="text-sm font-medium truncate">{user.displayName || user.email}</span>
                 </div>
             </Link>
             <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
