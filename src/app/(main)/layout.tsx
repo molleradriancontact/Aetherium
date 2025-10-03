@@ -28,6 +28,7 @@ import {
   Beaker,
   MessageSquare,
   User,
+  Users,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
@@ -46,6 +47,7 @@ const navItems = [
   { href: '/prototype', label: 'Prototype', icon: FlaskConical },
   { href: '/library', label: 'Library', icon: Library },
   { href: '/history', label: 'History', icon: GitBranch },
+  { href: '/collaboration', label: 'Collaboration', icon: Users },
   { href: '/account', label: 'Account', icon: User },
 ];
 

@@ -1,88 +1,74 @@
 /**
- * @fileoverview Firestore Security Rules for OS Architect.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model. Each user can only
- * access their own profile data and the OS Architect projects they have created.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for user profiles and their associated projects.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information.
- * - /users/{userId}/projects/{projectId}: Stores OS Architect projects belonging to each user.
+ * - /users/{userId}: Stores user profile information. Only the authenticated user can read or write their own profile.
+ * - /users/{userId}/projects/{projectId}: Stores projects owned by a specific user. Only the owning user can create, read, update, or delete their own projects.
  *
  * Key Security Decisions:
- * - Users can only create, read, update, and delete their own user documents.
- * - Users can only create, read, update, and delete OS Architect projects under their own user ID.
- * - Listing all users is disallowed.
+ * - User listing is disallowed to protect user privacy.
+ * - Strict ownership is enforced for both user profiles and projects.
+ * - Data validation is relaxed to allow for rapid prototyping but critical authorization fields are validated.
  *
  * Denormalization for Authorization:
- * - The `ArchitectProject` entity requires the `userId` field for authorization.
- *   This field must match the parent `/users/{userId}` path to ensure proper ownership.
+ * - The `ArchitectProject` entity contains a `userId` field, which is used to enforce ownership. This avoids needing to query a separate collection to determine project ownership.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper function to check if the request is authenticated.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if the authenticated user is the owner of the resource.
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Helper function to check if the authenticated user is the existing owner of the resource.
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
     /**
-     * @description Controls access to user profile documents.
+     * @description Controls access to user profile information.
      * @path /users/{userId}
-     * @allow (create) - User with ID 'user123' can create their own profile.
-     *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "user123", ... } } }
-     * @allow (get) - User with ID 'user123' can read their own profile.
-     *   Request: { "auth": { "uid": "user123" } }
-     * @allow (update) - User with ID 'user123' can update their own profile.
-     *   Request: { "auth": { "uid": "user123" } }
-     * @allow (delete) - User with ID 'user123' can delete their own profile.
-     *   Request: { "auth": { "uid": "user123" } }
-     * @deny (create) - User with ID 'user456' cannot create a profile for user 'user123'.
-     *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "user123", ... } } }
-     * @deny (get) - User with ID 'user456' cannot read the profile of user 'user123'.
-     *   Request: { "auth": { "uid": "user456" } }
-     * @principle Enforces document ownership for all operations.
+     * @allow (get) User with ID 'user123' can read their own profile: auth.uid == 'user123'
+     * @allow (create) User with ID 'user123' can create their own profile: auth.uid == 'user123'
+     * @allow (update) User with ID 'user123' can update their own profile: auth.uid == 'user123'
+     * @allow (delete) User with ID 'user123' can delete their own profile: auth.uid == 'user123'
+     * @deny (get) User with ID 'user456' cannot read the profile of user 'user123': auth.uid != 'user123'
+     * @deny (create) User with ID 'user456' cannot create a profile with ID 'user123': auth.uid != 'user123'
+     * @principle Enforces document ownership for writes.  Validates relational integrity between the path and the resource data.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false;
+      allow list: if false; // User listing is not allowed.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id; // Enforce immutability of userId
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to OS Architect project documents within a user's profile.
+     * @description Controls access to user's analysis and chat projects.
      * @path /users/{userId}/projects/{projectId}
-     * @allow (create) - User with ID 'user123' can create a project under their profile.
-     *   Request: { "auth": { "uid": "user123" }, "resource": { "data": { "userId": "user123", ... } } }
-     * @allow (get) - User with ID 'user123' can read a project under their profile.
-     *   Request: { "auth": { "uid": "user123" } }
-     * @allow (update) - User with ID 'user123' can update a project under their profile.
-     *   Request: { "auth": { "uid": "user123" } }
-     * @allow (delete) - User with ID 'user123' can delete a project under their profile.
-     *   Request: { "auth": { "uid": "user123" } }
-     * @deny (create) - User with ID 'user456' cannot create a project under user 'user123''s profile.
-     *   Request: { "auth": { "uid": "user456" }, "resource": { "data": { "userId": "user123", ... } } }
-     * @deny (get) - User with ID 'user456' cannot read a project under user 'user123''s profile.
-     *   Request: { "auth": { "uid": "user456" } }
-     * @principle Restricts project access to the owning user.
+     * @allow (get) User 'user123' can read their own project 'project456': auth.uid == 'user123'
+     * @allow (create) User 'user123' can create a project under their ID: auth.uid == 'user123'
+     * @allow (update) User 'user123' can update their own project 'project456': auth.uid == 'user123'
+     * @allow (delete) User 'user123' can delete their own project 'project456': auth.uid == 'user123'
+     * @deny (get) User 'user456' cannot read project 'project456' owned by 'user123': auth.uid != 'user123'
+     * @deny (create) User 'user456' cannot create a project under user 'user123': auth.uid != 'user123'
+     * @principle Enforces document ownership for writes. Validates relational integrity between the path and the resource data.
      */
     match /users/{userId}/projects/{projectId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId; // Enforce immutability of userId
       allow delete: if isExistingOwner(userId);
     }
-  }
-
-  // Helper Functions
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  function isOwner(userId) {
-    return isSignedIn() && request.auth.uid == userId;
-  }
-
-  function isExistingOwner(userId) {
-    return isOwner(userId) && resource != null;
   }
 }

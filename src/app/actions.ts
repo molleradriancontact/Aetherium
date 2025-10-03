@@ -1,7 +1,8 @@
+
 'use server';
 
-import { doc, deleteDoc } from 'firebase/firestore';
-import { getSdks } from '@/firebase'; // Assuming a server-side init is available
+import { doc, deleteDoc, getFirestore, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { getAdminApp, getAdminAuth } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
 
 
@@ -33,16 +34,12 @@ export async function deleteProject(userId: string, projectId: string) {
     if (!userId || !projectId) {
         throw new Error("User ID and Project ID are required.");
     }
+    const db = getFirestore(getAdminApp());
 
     try {
-        // We're using the client SDK flavor here for simplicity,
-        // but in a real-world server action you'd use the Admin SDK.
-        // The getSdks function will need to be adapted for server-side use.
-        const { firestore } = getSdks();
-        const projectDocRef = doc(firestore, 'users', userId, 'projects', projectId);
+        const projectDocRef = doc(db, 'users', userId, 'projects', projectId);
         await deleteDoc(projectDocRef);
         
-        // Revalidate the paths to trigger a data refresh on the client
         revalidatePath('/projects');
         revalidatePath('/chats');
 
@@ -50,7 +47,63 @@ export async function deleteProject(userId: string, projectId: string) {
     } catch (error) {
         console.error("Failed to delete project:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-        // Throwing the error to be caught by the client-side caller
+        throw new Error(errorMessage);
+    }
+}
+
+export async function addCollaborator(ownerId: string, projectId: string, collaboratorEmail: string) {
+    if (!ownerId || !projectId || !collaboratorEmail) {
+        throw new Error("Owner ID, Project ID, and Collaborator Email are required.");
+    }
+    
+    const db = getFirestore(getAdminApp());
+    const auth = getAdminAuth();
+
+    try {
+        const userRecord = await auth.getUserByEmail(collaboratorEmail);
+        const collaboratorId = userRecord.uid;
+
+        if (ownerId === collaboratorId) {
+            throw new Error("You cannot add yourself as a collaborator.");
+        }
+        
+        const projectRef = doc(db, 'users', ownerId, 'projects', projectId);
+        
+        await updateDoc(projectRef, {
+            collaborators: arrayUnion(collaboratorId)
+        });
+
+        revalidatePath('/collaboration');
+        return { success: true, collaboratorId: collaboratorId };
+    } catch (error: any) {
+        console.error("Failed to add collaborator:", error);
+        if (error.code === 'auth/user-not-found') {
+            throw new Error("User with this email does not exist.");
+        }
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        throw new Error(errorMessage);
+    }
+}
+
+export async function removeCollaborator(ownerId: string, projectId: string, collaboratorId: string) {
+    if (!ownerId || !projectId || !collaboratorId) {
+        throw new Error("Owner ID, Project ID, and Collaborator ID are required.");
+    }
+    
+    const db = getFirestore(getAdminApp());
+
+    try {
+        const projectRef = doc(db, 'users', ownerId, 'projects', projectId);
+        
+        await updateDoc(projectRef, {
+            collaborators: arrayRemove(collaboratorId)
+        });
+
+        revalidatePath('/collaboration');
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to remove collaborator:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         throw new Error(errorMessage);
     }
 }
