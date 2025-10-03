@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -27,6 +26,7 @@ import {
   Briefcase,
   Beaker,
   MessageSquare,
+  User,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
@@ -45,6 +45,7 @@ const navItems = [
   { href: '/prototype', label: 'Prototype', icon: FlaskConical },
   { href: '/library', label: 'Library', icon: Library },
   { href: '/history', label: 'History', icon: GitBranch },
+  { href: '/account', label: 'Account', icon: User },
 ];
 
 function MainLayout({ children }: { children: React.ReactNode }) {
@@ -110,7 +111,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           ))}
         </SidebarMenu>
         <SidebarFooter>
-            <div className="flex items-center gap-3 p-4">
+            <Link href="/account" className="flex items-center gap-3 p-4 hover:bg-sidebar-accent rounded-md">
                 <Avatar className="h-8 w-8">
                     <AvatarImage src={user.photoURL ?? undefined} />
                     <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
@@ -118,7 +119,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
                     <span className="text-sm font-medium truncate">{user.email}</span>
                 </div>
-            </div>
+            </Link>
             <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span className="group-data-[collapsible=icon]:hidden">Logout</span>
