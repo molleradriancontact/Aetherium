@@ -53,17 +53,21 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 };
 
 export function FileUpload() {
-  const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, clearState, createProject } = useAppState();
+  const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, clearState, createProject, projectId } = useAppState();
   const { toast } = useToast();
   const [files, setFiles] = useState<FileWithPath[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
+    // If a project is already loaded, we clear it to start a new one.
+    if (projectId) {
+      clearState();
+    }
     const newFiles = acceptedFiles.filter(
         (file) => !files.some((prevFile) => prevFile.path === file.path)
     );
     setFiles((prevFiles) => [...prevFiles, ...newFiles]);
-  }, [files]);
+  }, [files, projectId, clearState]);
 
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
