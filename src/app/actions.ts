@@ -1,9 +1,10 @@
 
 'use server';
 
-import { doc, deleteDoc, getFirestore, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { getAdminApp, getAdminAuth } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
+import { arrayUnion, arrayRemove, doc, getDoc, updateDoc } from 'firebase/firestore';
 
 
 type GeneratedFile = {
@@ -34,11 +35,11 @@ export async function deleteProject(userId: string, projectId: string) {
     if (!userId || !projectId) {
         throw new Error("User ID and Project ID are required.");
     }
-    const db = getFirestore(getAdminApp());
+    const adminDb = getFirestore(getAdminApp());
 
     try {
-        const projectDocRef = doc(db, 'users', userId, 'projects', projectId);
-        await deleteDoc(projectDocRef);
+        const projectDocRef = adminDb.collection('users').doc(userId).collection('projects').doc(projectId);
+        await projectDocRef.delete();
         
         revalidatePath('/projects');
         revalidatePath('/chats');
@@ -67,19 +68,19 @@ export async function addCollaborator(ownerId: string, projectId: string, collab
             throw new Error("You cannot add yourself as a collaborator.");
         }
         
-        const projectRef = doc(db, 'users', ownerId, 'projects', projectId);
+        const projectRef = db.collection('users').doc(ownerId).collection('projects').doc(projectId);
         
         // Fetch collaborator's user profile to get their username
-        const collaboratorUserRef = doc(db, 'users', collaboratorId);
-        const collaboratorDoc = await getDoc(collaboratorUserRef);
-        if (!collaboratorDoc.exists()) {
+        const collaboratorUserRef = db.collection('users').doc(collaboratorId);
+        const collaboratorDoc = await collaboratorUserRef.get();
+        if (!collaboratorDoc.exists) {
             throw new Error("Collaborator's user profile does not exist.");
         }
-        const collaboratorData = collaboratorDoc.data();
+        const collaboratorData = collaboratorDoc.data()!;
 
-        await updateDoc(projectRef, {
-            collaborators: arrayUnion(collaboratorId),
-            collaboratorDetails: arrayUnion({
+        await projectRef.update({
+            collaborators: getFirestore.FieldValue.arrayUnion(collaboratorId),
+            collaboratorDetails: getFirestore.FieldValue.arrayUnion({
                 id: collaboratorId,
                 email: collaboratorData.email,
                 username: collaboratorData.username,
@@ -107,25 +108,25 @@ export async function removeCollaborator(ownerId: string, projectId: string, col
     const db = getFirestore(getAdminApp());
 
     try {
-        const projectRef = doc(db, 'users', ownerId, 'projects', projectId);
-        const projectDoc = await getDoc(projectRef);
+        const projectRef = db.collection('users').doc(ownerId).collection('projects').doc(projectId);
+        const projectDoc = await projectRef.get();
 
-        if (!projectDoc.exists()) {
+        if (!projectDoc.exists) {
             throw new Error("Project not found.");
         }
         
-        const projectData = projectDoc.data();
+        const projectData = projectDoc.data()!;
         const collaboratorDetailsToRemove = (projectData.collaboratorDetails || []).find((c: any) => c.id === collaboratorId);
 
         const updates: any = {
-            collaborators: arrayRemove(collaboratorId)
+            collaborators: getFirestore.FieldValue.arrayRemove(collaboratorId)
         };
 
         if (collaboratorDetailsToRemove) {
-            updates.collaboratorDetails = arrayRemove(collaboratorDetailsToRemove);
+            updates.collaboratorDetails = getFirestore.FieldValue.arrayRemove(collaboratorDetailsToRemove);
         }
         
-        await updateDoc(projectRef, updates);
+        await projectRef.update(updates);
 
         revalidatePath('/collaboration');
         return { success: true };
