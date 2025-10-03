@@ -63,7 +63,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    clearState();
+    if (pathname !== '/') {
+        clearState();
+    }
     router.push('/');
   }
   

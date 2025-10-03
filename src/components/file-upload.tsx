@@ -62,6 +62,7 @@ export function FileUpload() {
     // If a project is already loaded, we clear it to start a new one.
     if (projectId) {
       clearState();
+      setFiles([]); // Also clear the local file list
     }
     const newFiles = acceptedFiles.filter(
         (file) => !files.some((prevFile) => prevFile.path === file.path)
@@ -80,7 +81,9 @@ export function FileUpload() {
 
   const handleClear = () => {
     setFiles([]);
-    clearState();
+    if (projectId) {
+      clearState();
+    }
   }
 
   const handleAnalyze = async () => {
