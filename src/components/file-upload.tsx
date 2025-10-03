@@ -6,12 +6,13 @@ import { useToast } from '@/hooks/use-toast';
 import { FileUp, Loader2, X } from 'lucide-react';
 import React, { useCallback, useState, useMemo } from 'react';
 import { useDropzone, FileWithPath } from 'react-dropzone';
-import { analyzeFilesAction } from '@/app/actions';
+import { startAnalysisAction } from '@/app/actions';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ScrollArea } from './ui/scroll-area';
 import { UploadedFile } from '@/app/provider';
 import { Input } from './ui/input';
+import { useFirebase } from '@/firebase';
 
 const readFileAsDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -23,7 +24,8 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 };
 
 export function FileUpload() {
-  const { setIsLoading, setAnalysisReport, setFrontendSuggestions, setBackendSuggestions, addHistory, createProject, clearState } = useAppState();
+  const { setIsLoading, clearState } = useAppState();
+  const { user } = useFirebase();
   const { toast } = useToast();
   const [files, setFiles] = useState<FileWithPath[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -100,7 +102,7 @@ export function FileUpload() {
         className="h-8 text-sm"
       />
     </li>
-  )), [files]);
+  )), [files, handleFileNameChange]);
 
   const handleClear = () => {
     setFiles([]);
@@ -111,96 +113,37 @@ export function FileUpload() {
       toast({ title: 'No files selected', description: 'Please upload files to analyze.', variant: 'destructive' });
       return;
     }
-    
-    const createTree = (files: { path: string }[]): string => {
-        const root: any = {};
-        for (const file of files) {
-          const path = file.path;
-          if (typeof path !== 'string') continue;
-      
-          let current = root;
-          const parts = path.split('/');
-          for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            if (!current[part]) {
-              current[part] = i === parts.length - 1 ? null : {};
-            }
-            current = current[part];
-          }
-        }
-      
-        function formatTree(node: any, prefix = ''): string {
-          const entries = Object.entries(node);
-          let result = '';
-          entries.forEach(([key, value], index) => {
-            const isLast = index === entries.length - 1;
-            result += `${prefix}${isLast ? '└── ' : '├── '}${key}\n`;
-            if (value !== null) {
-              result += formatTree(value, `${prefix}${isLast ? '    ' : '│   '}`);
-            }
-          });
-          return result;
-        }
-        return formatTree(root);
-    };
+    if (!user) {
+      toast({ title: 'Not Authenticated', description: 'You must be logged in to analyze a project.', variant: 'destructive' });
+      return;
+    }
 
     setIsProcessing(true);
     setIsLoading(true);
-    clearState(false);
+    clearState(false); // Clear previous state without causing a loading flicker
 
     try {
-        addHistory('Preparing files for analysis...');
-        
-        const fileDataUris = await Promise.all(files.map(readFileAsDataURL));
-
-        const uploadedFiles: UploadedFile[] = files.map((file, index) => ({
+        const uploadedFiles: UploadedFile[] = await Promise.all(files.map(async (file) => ({
           path: file.path!,
-          content: fileDataUris[index]
-        }));
-        
-        const codeSnippets = files.map((file, index) => {
-          const content = fileDataUris[index];
-          // For non-text files, just include the path and a placeholder
-          if (content.startsWith('data:image') || content.startsWith('data:application')) {
-            return `--- ${file.path} ---
-[Binary content at this path]
-`;
-          }
-          return `--- ${file.path} ---
-${content}
-`;
-        }
-        ).join('\n\n');
+          content: await readFileAsDataURL(file)
+        })));
 
-        const filePaths = files.map(f => ({ path: f.path as string }));
-        const fileStructure = createTree(filePaths);
-        
-        addHistory('Starting AI analysis...');
-        const result = await analyzeFilesAction({ fileStructure, codeSnippets });
+        const result = await startAnalysisAction({
+          userId: user.uid,
+          files: uploadedFiles,
+        });
         
         if (result.success) {
-            await createProject(result.projectName, uploadedFiles);
-            addHistory(`Project "${result.projectName}" created.`);
-
-            setAnalysisReport(result.report);
-            if (result.frontendSuggestions) {
-              setFrontendSuggestions(result.frontendSuggestions);
-            }
-            if (result.backendSuggestions) {
-              setBackendSuggestions(result.backendSuggestions);
-            }
-            addHistory('Analysis complete. Report generated.');
-            toast({ title: 'Analysis Complete', description: 'The analysis report has been generated successfully.' });
+            toast({ title: 'Analysis Started', description: 'Your project is now being analyzed. You can see progress in the History page.' });
         } else {
-            addHistory(`Analysis failed: ${result.error}`);
             toast({ title: 'Analysis Failed', description: result.error, variant: 'destructive' });
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-        addHistory(`Operation failed: ${errorMessage}`);
         toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
     } finally {
-        setIsLoading(false);
+        // The main loading state is now driven by the AppProvider listening to Firestore,
+        // so we can set local processing to false.
         setIsProcessing(false);
     }
   };
