@@ -4,7 +4,6 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAdminApp, getAdminAuth } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
-import { initializeApp, getApps, App, deleteApp } from 'firebase-admin/app';
 
 type GeneratedFile = {
     path: string;
@@ -34,18 +33,8 @@ export async function deleteProject(userId: string, projectId: string) {
     if (!userId || !projectId) {
         throw new Error("User ID and Project ID are required.");
     }
-
-    // Initialize a temporary admin app for this action.
-    // By not providing credentials, it will use the Application Default Credentials.
-    const appName = `delete-project-${Date.now()}`;
-    let tempApp: App;
-    if (getApps().some(app => app.name === appName)) {
-        tempApp = getApp(appName);
-        await deleteApp(tempApp); // Delete if it somehow still exists
-    }
-    tempApp = initializeApp({}, appName);
-
-    const adminDb = getFirestore(tempApp);
+    
+    const adminDb = getFirestore(getAdminApp());
 
     try {
         const projectDocRef = adminDb.collection('users').doc(userId).collection('projects').doc(projectId);
@@ -58,9 +47,6 @@ export async function deleteProject(userId: string, projectId: string) {
         console.error("Failed to delete project:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         throw new Error(errorMessage);
-    } finally {
-        // Clean up the temporary app
-        await deleteApp(tempApp);
     }
 }
 

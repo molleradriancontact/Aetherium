@@ -3,8 +3,7 @@ import { initializeApp, getApps, getApp, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { credential } from 'firebase-admin';
 
-let adminApp: App;
-let adminAuth: Auth;
+let adminApp: App | undefined;
 
 function initializeAdminApp(): App {
     if (getApps().some(app => app.name === 'admin')) {
@@ -13,19 +12,17 @@ function initializeAdminApp(): App {
 
     // By not passing any credential, Firebase Admin SDK will use Application Default Credentials
     // which are automatically available in this environment.
-    return initializeApp({}, 'admin');
+    adminApp = initializeApp({}, 'admin');
+    return adminApp;
 }
 
 export function getAdminApp(): App {
     if (!adminApp) {
-        adminApp = initializeAdminApp();
+        return initializeAdminApp();
     }
     return adminApp;
 }
 
 export function getAdminAuth(): Auth {
-    if (!adminAuth) {
-        adminAuth = getAuth(getAdminApp());
-    }
-    return adminAuth;
+    return getAuth(getAdminApp());
 }

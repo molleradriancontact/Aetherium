@@ -185,8 +185,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, isUserLoading, firestore, projectId, clearState]);
 
 
-  const addHistory = useCallback(async (projectId: string, message: string) => {
-    if (!user || !firestore) return;
+  const addHistory = useCallback(async (message: string) => {
+    if (!user || !firestore || !projectId) return;
     const currentHistory = (history || []).map(h => ({...h, timestamp: h.timestamp}));
 
     const newHistoryItem = { id: Date.now(), message, timestamp: new Date() };
@@ -195,7 +195,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
     await updateDoc(projectRef, { history: updatedHistory });
-  }, [user, firestore, history]);
+  }, [user, firestore, history, projectId]);
 
 
   const startAnalysis = useCallback(async (files: UploadedFile[]) => {
@@ -228,20 +228,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const codeSnippets = files.map(file => `--- ${file.path} ---\n${file.content}`).join('\n\n');
 
         setDetailedStatus('Generating project name...');
-        await addHistory(newProjectId, 'Generating project name...');
+        await addHistory('Generating project name...');
         const nameResult = await generateProjectName({ fileContents: codeSnippets });
         await updateDoc(projectRef, { name: nameResult.projectName });
 
         setDetailedStatus('Generating analysis report...');
-        await addHistory(newProjectId, 'Generating analysis report...');
+        await addHistory('Generating analysis report...');
         const reportResult = await generateInitialAnalysisReport({ fileStructure, codeSnippets });
         await updateDoc(projectRef, { analysisReport: reportResult.report });
         
-        await addHistory(newProjectId, 'Analysis complete. You can now generate suggestions.');
+        await addHistory('Analysis complete. You can now generate suggestions.');
       } catch (aiError: any) {
         console.error("AI analysis failed:", aiError);
         const errorMessage = aiError.message || "An unknown AI error occurred.";
-        await addHistory(newProjectId, `Analysis failed: ${errorMessage}`);
+        await addHistory(`Analysis failed: ${errorMessage}`);
       } finally {
         setDetailedStatus(null);
       }
@@ -307,11 +307,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     backendSuggestions,
     setBackendSuggestions,
     history,
-    addHistory: (message: string) => {
-      if (projectId) {
-        addHistory(projectId, message);
-      }
-    },
+    addHistory,
     clearState,
     projectId,
     setProjectId,

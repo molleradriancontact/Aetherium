@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
 import { Loader2, Mail, Calendar, Save } from "lucide-react";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc } from "firebase/firestore";
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import React from "react";
 import { updateProfile } from "firebase/auth";
+import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 const profileSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(20, "Username must be at most 20 characters"),
@@ -58,22 +59,23 @@ export default function AccountPage() {
 
     const onSubmit = async (data: ProfileFormValues) => {
         if (!userDocRef || !auth.currentUser) return;
-        try {
-            // Update Firestore document
-            await updateDoc(userDocRef, { username: data.username });
-            
-            // Update Firebase Auth profile
-            await updateProfile(auth.currentUser, { displayName: data.username });
+        
+        // Use non-blocking update for Firestore
+        updateDocumentNonBlocking(userDocRef, { username: data.username });
 
+        try {
+            // Firebase Auth profile update can remain awaited as it's a critical UI feedback step
+            await updateProfile(auth.currentUser, { displayName: data.username });
+            
             toast({
                 title: "Profile Updated",
                 description: "Your username has been successfully updated.",
             });
         } catch (error) {
-            console.error("Error updating profile:", error);
+            console.error("Error updating auth profile:", error);
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
             toast({
-                title: "Update Failed",
+                title: "Auth Profile Update Failed",
                 description: errorMessage,
                 variant: "destructive",
             });
@@ -170,5 +172,3 @@ export default function AccountPage() {
         </div>
     );
 }
-
-    
