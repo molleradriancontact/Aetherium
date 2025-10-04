@@ -73,6 +73,7 @@ export function ChatInterface() {
     setIsResponding(true);
 
     let currentProjectId = projectId;
+    const currentChatHistory = [...(isChatProject ? chatHistory : [])];
     
     // If it's a new chat, create the project first.
     if (!currentProjectId || !isChatProject) {
@@ -80,11 +81,12 @@ export function ChatInterface() {
     } else {
         await addChatMessage(currentProjectId, userMessage);
     }
+    
+    currentChatHistory.push(userMessage);
 
     // Now, call the AI with the most up-to-date history.
     try {
-      const currentMessages = [...(chatHistory || []), userMessage];
-      const result = await chat(currentMessages);
+      const result = await chat(currentChatHistory);
       const aiResponse: Message = { role: 'model', content: result.content };
       
       if (result.functionCall?.name === 'saveDocument') {
