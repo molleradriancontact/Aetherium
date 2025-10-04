@@ -68,19 +68,22 @@ export function ChatInterface() {
     if (!input.trim()) return;
 
     const userMessage: Message = { role: 'user', content: input };
-    let currentProjectId = projectId;
-    const currentMessages = [...(chatHistory || []), userMessage];
-
-    setIsResponding(true);
+    const currentInput = input;
     setInput('');
+    setIsResponding(true);
 
+    let currentProjectId = projectId;
+    
+    // If it's a new chat, create the project first.
     if (!currentProjectId || !isChatProject) {
         currentProjectId = await startChat(userMessage);
     } else {
         await addChatMessage(currentProjectId, userMessage);
     }
-    
+
+    // Now, call the AI with the most up-to-date history.
     try {
+      const currentMessages = [...(chatHistory || []), userMessage];
       const result = await chat(currentMessages);
       const aiResponse: Message = { role: 'model', content: result.content };
       
@@ -95,7 +98,9 @@ export function ChatInterface() {
       console.error('Chat error:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
       const errorResponse: Message = { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` };
-      await addChatMessage(currentProjectId, errorResponse);
+      if (currentProjectId) {
+          await addChatMessage(currentProjectId, errorResponse);
+      }
     } finally {
       setIsResponding(false);
     }

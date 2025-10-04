@@ -23,22 +23,24 @@ const saveDocumentTool = ai.defineTool(
 const chatFlow = ai.defineFlow(
   {
     name: 'chatFlow',
-    inputSchema: z.array(MessageSchema),
+    inputSchema: z.object({
+        system: z.string(),
+        history: z.array(MessageSchema),
+        prompt: z.string(),
+    }),
     outputSchema: z.object({
         content: z.string(),
         tool_code: z.string().optional(),
     }),
   },
-  async (messages) => {
+  async ({ system, history, prompt }) => {
     
-    const systemInstruction = `You are a helpful AI assistant for the Aetherium application. Your primary role is to communicate with the user and help them analyze their code or text. If the user provides a block of text and asks you to "save this" or "create a document from this", use the saveDocument tool to pass the content for saving. Do not add any commentary when using the tool, just call it. Otherwise, just respond as a helpful assistant.`;
-
     const llmResponse = await ai.generate({
       model: 'googleai/gemini-1.5-flash',
       tools: [saveDocumentTool],
-      system: systemInstruction,
-      history: messages.slice(0, -1),
-      prompt: messages.at(-1)?.content ?? '',
+      system: system,
+      history: history,
+      prompt: prompt,
     });
 
     const choice = llmResponse.choices[0];
@@ -61,7 +63,17 @@ const chatFlow = ai.defineFlow(
 
 export async function chat(messages: Message[]) {
   if (messages.length === 0) return { content: '' };
-  const result = await chatFlow(messages);
+  
+  const systemInstruction = `You are a helpful AI assistant for the Aetherium application. Your primary role is to communicate with the user and help them analyze their code or text. If the user provides a block of text and asks you to "save this" or "create a document from this", use the saveDocument tool to pass the content for saving. Do not add any commentary when using the tool, just call it. Otherwise, just respond as a helpful assistant.`;
+
+  const history = messages.slice(0, -1);
+  const prompt = messages.at(-1)?.content ?? '';
+
+  const result = await chatFlow({
+    system: systemInstruction,
+    history: history,
+    prompt: prompt,
+  });
   
   if (result.tool_code) {
     const toolData = JSON.parse(result.tool_code);
