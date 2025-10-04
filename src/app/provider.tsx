@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
 import { generateProjectName } from '@/ai/flows/generate-project-name';
 import type { Message } from '@/ai/flows/schemas';
+import { chat } from '@/ai/flows/chat';
 
 export interface UploadedFile {
     path: string;
@@ -99,6 +100,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         sessionStorage.removeItem('selectedProjectId');
+        if (projectId) { // Also remove old path if it exists
+          sessionStorage.removeItem(`projectPath_${projectId}`);
+        }
       }
     }
   };
@@ -122,11 +126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
   
   const clearState = useCallback((forceNav = false) => {
-    const currentProjectId = projectId;
-    if (typeof window !== 'undefined' && currentProjectId) {
-      sessionStorage.removeItem(`projectPath_${currentProjectId}`);
-    }
-    setProjectId(null);
+    setProjectId(null); // This will also clear session storage
     setAnalysisReport(null);
     _setFrontendSuggestions(null);
     _setBackendSuggestions(null);
@@ -141,7 +141,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (forceNav) {
         router.push('/');
     }
-  }, [router, projectId]);
+  }, [router]);
 
   const setStateFromData = (projectData: ArchitectProject) => {
     setProjectName(projectData.name || '');
@@ -187,7 +187,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         try {
             if (directPath) {
-                // If we have a direct path, use it. This is much faster for new documents.
                 docRef = doc(firestore, directPath);
                 const docSnap = await getDoc(docRef);
                 if (!docSnap.exists()) {
@@ -196,7 +195,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                      return;
                 }
             } else {
-                // Fallback to collectionGroup query for existing projects on app load.
                 const projectsQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
                 const initialSnapshot = await getDocs(projectsQuery);
                 if (initialSnapshot.empty) {
@@ -207,12 +205,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 docRef = initialSnapshot.docs[0].ref;
             }
 
-            // Now that we have a valid docRef, attach the real-time listener.
             unsubscribeRef.current = onSnapshot(docRef, (doc) => {
                 if (doc.exists()) {
                     const updatedData = doc.data() as ArchitectProject;
                     setStateFromData(updatedData);
-                    setDetailedStatus(null); // Load complete
+                    setDetailedStatus(null); 
                 } else {
                     console.warn(`Project with id ${projectId} was deleted.`);
                     clearState(true);
@@ -252,7 +249,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const newHistoryItem = { id: Date.now(), message, timestamp: new Date() };
 
-    // Optimistic update
     setHistory(currentHistory => [...currentHistory, newHistoryItem]);
 
     try {
@@ -261,7 +257,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
     } catch (e) {
         console.error("Failed to update history in Firestore:", e);
-        // Optional: handle rollback on failure
     }
   }, [user, firestore, projectId, history]);
 
@@ -323,29 +318,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const startChat = useCallback(async (initialMessage: Message, isPublic: boolean = false) => {
     if (!user || !firestore) throw new Error("User or Firestore not available.");
     
-    setDetailedStatus("Starting new chat");
+    setDetailedStatus("Starting new chat...");
     clearState(false);
 
     const collectionPath = isPublic ? 'projects' : `users/${user.uid}/projects`;
     const projectRef = doc(collection(firestore, collectionPath));
     const newProjectId = projectRef.id;
 
-    const initialChatProject: ArchitectProject = {
-        id: newProjectId,
-        userId: user.uid,
-        name: initialMessage.content.substring(0, 30),
-        createdAt: serverTimestamp(),
-        projectType: 'chat',
-        isPublic: isPublic,
-        chatHistory: [initialMessage]
-    };
+    try {
+        // Step 1: Immediately get the AI's response to the initial message
+        setDetailedStatus("Thinking...");
+        const result = await chat([initialMessage], initialMessage.content);
+        const aiResponse: Message = { role: 'model', content: result.content };
+        
+        // Step 2: Create the project with the full initial conversation history
+        setDetailedStatus("Creating chat project...");
+        const initialChatProject: ArchitectProject = {
+            id: newProjectId,
+            userId: user.uid,
+            name: initialMessage.content.substring(0, 30),
+            createdAt: serverTimestamp(),
+            projectType: 'chat',
+            isPublic: isPublic,
+            chatHistory: [initialMessage, aiResponse]
+        };
 
-    await setDoc(projectRef, initialChatProject);
-    setProjectId(newProjectId, projectRef.path);
-    setDetailedStatus(null);
+        await setDoc(projectRef, initialChatProject);
 
-    return newProjectId;
-  }, [user, firestore, clearState]);
+        // Step 3: Set the project ID in the state, which triggers the useEffect to load it
+        setProjectId(newProjectId, projectRef.path);
+        
+        return newProjectId;
+
+    } catch (error) {
+        console.error("Failed to start chat:", error);
+        setDetailedStatus(null);
+        clearState(true); // Go home on failure
+        throw error; // Re-throw for the UI to handle
+    }
+}, [user, firestore, clearState]);
 
   const addChatMessage = useCallback(async (projectId: string, message: Message) => {
     if (!firestore) return;
@@ -361,7 +372,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     const updatedHistory = [...(chatHistory || []), message];
 
-    // Optimistic update
     setChatHistory(updatedHistory);
 
     await updateDoc(projectRef, { chatHistory: updatedHistory });

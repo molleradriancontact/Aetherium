@@ -49,7 +49,7 @@ export function ChatInterface() {
         const newProjectId = await startAnalysis([{ path: 'Pasted Text.txt', content: dataUrl }]);
 
         toast({ title: 'Analysis Started', description: 'The document is being analyzed. You can see progress on the main page.' });
-        if (projectId) { // The current chat project ID
+        if (projectId) { 
             await addChatMessage(projectId, { role: 'model', content: `I've started analyzing the document under a new project. You'll be redirected once it's complete.`});
         }
       } catch (error) {
@@ -66,43 +66,35 @@ export function ChatInterface() {
     const currentInput = input;
     setInput('');
     
-    let currentProjectId = projectId;
-    
     try {
-        if (!currentProjectId || !isChatProject) {
+        if (!projectId || !isChatProject) {
+            // This is the path for the FIRST message.
             startResponding(async () => {
-                const newProjectId = await startChat(userMessage);
-                if (newProjectId) {
-                    currentProjectId = newProjectId;
-                    // After the project is created, immediately call the AI for a response.
-                    const result = await chat([userMessage], userMessage.content);
-                    const aiResponse: Message = { role: 'model', content: result.content };
-                    await addChatMessage(newProjectId, aiResponse);
-                }
+                await startChat(userMessage);
             });
         } else {
             // This is a subsequent message in an existing chat.
-            await addChatMessage(currentProjectId, userMessage);
+            await addChatMessage(projectId, userMessage);
             startResponding(async () => {
-                const historyForAI = [...(chatHistory || []), userMessage]; // Use the latest history
+                const historyForAI = [...(chatHistory || []), userMessage];
                 const result = await chat(historyForAI, currentInput);
                 const aiResponse: Message = { role: 'model', content: result.content };
                 
                 if (result.functionCall?.name === 'saveDocument') {
-                    await addChatMessage(currentProjectId!, aiResponse);
+                    await addChatMessage(projectId, aiResponse);
                     const textToSave = result.functionCall.args.content;
                     await handleSaveDocument(textToSave);
                 } else {
-                    await addChatMessage(currentProjectId!, aiResponse);
+                    await addChatMessage(projectId, aiResponse);
                 }
             });
         }
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      const errorResponse: Message = { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` };
-      if (currentProjectId) {
-          await addChatMessage(currentProjectId, errorResponse);
+      toast({ title: "Failed to Send", description: errorMessage, variant: 'destructive' });
+      if (projectId) {
+          await addChatMessage(projectId, { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` });
       }
     }
   };
