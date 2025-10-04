@@ -1,3 +1,4 @@
+
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -18,6 +19,8 @@ function ensureFirebaseInitialized() {
   }
 
   const auth = getAuth(app);
+  // Do not await this promise. It's a non-blocking call.
+  // The onAuthStateChanged listener will handle the user state once persistence is resolved.
   setPersistence(auth, browserSessionPersistence);
   appInitialized = true;
 }
@@ -47,3 +50,5 @@ export * from './non-blocking-updates';
 export * from './non-blocking-login';
 export * from './errors';
 export * from './error-emitter';
+
+    

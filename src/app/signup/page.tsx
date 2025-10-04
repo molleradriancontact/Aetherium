@@ -1,17 +1,17 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useFirebase } from '@/firebase';
+import { useFirebase, initiateEmailSignUp } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, User, updateProfile } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, User, updateProfile } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -33,9 +33,15 @@ export default function SignUpPage() {
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const { auth, firestore } = useFirebase();
+  const { auth, firestore, user, isUserLoading } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
+  
+  useEffect(() => {
+    if(!isUserLoading && user) {
+        router.push('/');
+    }
+  }, [user, isUserLoading, router]);
 
   const handleUserCreation = async (user: User | null, defaultUsername?: string, photoURL?: string | null) => {
     if (!user || !firestore) return;
@@ -43,10 +49,8 @@ export default function SignUpPage() {
     try {
         const finalUsername = username || defaultUsername || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
 
-        // Step 1: Update Auth profile first. Await this as it's quick and important for immediate UI consistency.
         await updateProfile(user, { displayName: finalUsername, photoURL: photoURL || user.photoURL });
 
-        // Step 2: Create the user document in Firestore using a non-blocking write.
         const userRef = doc(firestore, 'users', user.uid);
         const userData = {
           id: user.uid,
@@ -56,11 +60,9 @@ export default function SignUpPage() {
           registrationDate: new Date().toISOString(),
         };
         
-        // This will write to Firestore without blocking, and errors will be handled globally.
         setDocumentNonBlocking(userRef, userData, { merge: true });
 
-        // Step 3: Navigate the user to the home page.
-        router.push('/');
+        // onAuthStateChanged will handle the redirect now
         
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -75,10 +77,7 @@ export default function SignUpPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      toast({
-        variant: 'destructive',
-        title: 'Passwords do not match.',
-      });
+      toast({ variant: 'destructive', title: 'Passwords do not match.' });
       return;
     }
      if (!username.trim()) {
@@ -86,16 +85,13 @@ export default function SignUpPage() {
       return;
     }
     if (!auth) return;
+
     setIsLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
       await handleUserCreation(userCredential.user);
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign-up failed.',
-        description: error.message,
-      });
+      toast({ variant: 'destructive', title: 'Sign-up failed.', description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -105,8 +101,7 @@ export default function SignUpPage() {
     if (!auth) return;
     setIsGoogleLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, new GoogleAuthProvider());
       await handleUserCreation(result.user, result.user.displayName || undefined, result.user.photoURL);
     } catch (error: any) {
        toast({
@@ -117,6 +112,14 @@ export default function SignUpPage() {
     } finally {
         setIsGoogleLoading(false);
     }
+  }
+
+  if (isUserLoading || user) {
+      return (
+          <div className="flex h-screen w-full items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+      )
   }
 
   return (
@@ -212,3 +215,5 @@ export default function SignUpPage() {
     </div>
   );
 }
+
+    
