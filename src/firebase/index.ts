@@ -4,6 +4,7 @@ import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { DependencyList, useMemo } from 'react';
 
 let app: FirebaseApp;
 let appInitialized = false;
@@ -40,6 +41,31 @@ export function getSdks() {
   };
 }
 
+type MemoFirebase<T> = T & { __memo?: boolean };
+
+/**
+ * A hook to memoize Firebase queries or references.
+ * It adds a non-enumerable property `__memo` to the returned object,
+ * which is used by `useCollection` and `useDoc` to enforce memoization.
+ * 
+ * @param factory A function that creates the Firebase query or reference.
+ * @param deps The dependency array for the `useMemo` hook.
+ * @returns The memoized Firebase object.
+ */
+export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T {
+  const memoized = useMemo(factory, deps);
+
+  if (typeof memoized === 'object' && memoized !== null) {
+    Object.defineProperty(memoized, '__memo', {
+      value: true,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+
+  return memoized;
+}
+
 
 export * from './provider';
 export * from './client-provider';
@@ -49,5 +75,3 @@ export * from './non-blocking-updates';
 export * from './non-blocking-login';
 export * from './errors';
 export * from './error-emitter';
-
-    
