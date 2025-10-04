@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, linkWithCredential, AuthError, getAdditionalUserInfo, UserCredential, OAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, linkWithCredential, AuthError, getAdditionalUserInfo, UserCredential, OAuthCredential } from 'firebase/auth';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -37,7 +37,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   
-  const [pendingCred, setPendingCred] = useState<OAuthProvider | null>(null);
+  const [pendingCred, setPendingCred] = useState<OAuthCredential | null>(null);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +46,7 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
       if (pendingCred && userCredential.user) {
-        await linkWithCredential(userCredential.user, pendingCred as any);
+        await linkWithCredential(userCredential.user, pendingCred);
         toast({
             title: "Accounts Linked",
             description: "Your Google account is now linked. You can sign in with Google from now on."
@@ -79,14 +79,13 @@ export default function LoginPage() {
       router.push('/');
     } catch (error: any) {
       const authError = error as AuthError;
-      if (authError.code === 'auth/account-exists-with-different-credential') {
+      if (authError.code === 'auth/account-exists-with-different-credential' && authError.customData.email) {
         const pendingCred = GoogleAuthProvider.credentialFromError(authError);
-        const email = authError.customData.email;
-        if (email && pendingCred) {
-          setEmail(email as string);
-          setPendingCred(pendingCred as any);
+        if (pendingCred) {
+          setEmail(authError.customData.email as string);
+          setPendingCred(pendingCred);
         } else {
-             toast({ variant: 'destructive', title: 'Google Sign-in failed.', description: 'Could not retrieve email for account linking.' });
+             toast({ variant: 'destructive', title: 'Google Sign-in failed.', description: 'Could not retrieve credentials for account linking.' });
         }
       } else {
         toast({
