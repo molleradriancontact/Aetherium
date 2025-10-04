@@ -315,7 +315,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const startChat = useCallback(async (initialMessage: Message, isPublic: boolean = false) => {
     if (!user || !firestore) throw new Error("User or Firestore not available.");
     
-    clearState(false);
     setDetailedStatus("Starting new chat");
     
     const collectionPath = isPublic ? 'projects' : `users/${user.uid}/projects`;
@@ -337,10 +336,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     // Now that the document is created, we can safely set the ID and let the useEffect load it.
     setProjectId(newProjectId);
-    setDetailedStatus(null);
 
     return newProjectId;
-  }, [user, firestore, clearState]);
+  }, [user, firestore]);
 
   const addChatMessage = useCallback(async (projectId: string, message: Message) => {
     if (!firestore) return;

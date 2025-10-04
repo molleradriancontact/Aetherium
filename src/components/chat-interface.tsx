@@ -66,52 +66,42 @@ export function ChatInterface() {
     const currentInput = input;
     setInput('');
     
-
-    let currentProjectId = projectId;
-    
     try {
-      if (!currentProjectId || !isChatProject) {
-        startResponding(async () => {
-          const newProjectId = await startChat(userMessage);
-          const historyForAI = [];
-          const promptForAI = userMessage.content;
-          
-          const result = await chat(historyForAI, promptForAI);
-          const aiResponse: Message = { role: 'model', content: result.content };
-          
-          if (result.functionCall?.name === 'saveDocument') {
-            await addChatMessage(newProjectId, aiResponse);
-            const textToSave = result.functionCall.args.content;
-            await handleSaveDocument(textToSave);
-          } else {
-            await addChatMessage(newProjectId, aiResponse);
-          }
-        });
-      } else {
-        await addChatMessage(currentProjectId, userMessage);
-        startResponding(async () => {
-          const updatedHistory = [...(chatHistory || [])];
-          const historyForAI = updatedHistory.slice(0, -1);
-          const promptForAI = updatedHistory.at(-1)?.content ?? '';
-
-          const result = await chat(historyForAI, promptForAI);
-          const aiResponse: Message = { role: 'model', content: result.content };
-          
-          if (result.functionCall?.name === 'saveDocument') {
-            await addChatMessage(currentProjectId!, aiResponse);
-            const textToSave = result.functionCall.args.content;
-            await handleSaveDocument(textToSave);
-          } else {
-            await addChatMessage(currentProjectId!, aiResponse);
-          }
-        });
-      }
+        if (!projectId || !isChatProject) {
+            // This is the first message of a new chat.
+            // `startChat` will create the project and add the first message.
+            startResponding(async () => {
+                const newProjectId = await startChat(userMessage);
+                if (newProjectId) {
+                    // After the project is created, immediately call the AI for a response.
+                    const result = await chat([], userMessage.content);
+                    const aiResponse: Message = { role: 'model', content: result.content };
+                    await addChatMessage(newProjectId, aiResponse);
+                }
+            });
+        } else {
+            // This is a subsequent message in an existing chat.
+            await addChatMessage(projectId, userMessage);
+            startResponding(async () => {
+                const historyForAI = [...(chatHistory || [])]; // Use the latest history
+                const result = await chat(historyForAI, userMessage.content);
+                const aiResponse: Message = { role: 'model', content: result.content };
+                
+                if (result.functionCall?.name === 'saveDocument') {
+                    await addChatMessage(projectId, aiResponse);
+                    const textToSave = result.functionCall.args.content;
+                    await handleSaveDocument(textToSave);
+                } else {
+                    await addChatMessage(projectId, aiResponse);
+                }
+            });
+        }
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
       const errorResponse: Message = { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` };
-      if (currentProjectId) {
-          await addChatMessage(currentProjectId, errorResponse);
+      if (projectId) {
+          await addChatMessage(projectId, errorResponse);
       }
     }
   };
@@ -191,7 +181,7 @@ export function ChatInterface() {
                     <p className="text-xs mt-2">Your chat history will be saved automatically.</p>
                 </div>
              )}
-              {isLoading && !isChatProject && (
+              {isLoading && (
                 <div className="flex justify-center items-center p-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
