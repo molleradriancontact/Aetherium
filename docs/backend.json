@@ -61,6 +61,10 @@
           "description": "Date and time the project was created.",
           "format": "date-time"
         },
+        "isPublic": {
+          "type": "boolean",
+          "description": "Determines if the project is visible to all users."
+        },
         "projectType": {
           "type": "string",
           "description": "The type of project, either 'analysis' or 'chat'.",
@@ -219,11 +223,17 @@
       },
       "description": "Stores user profile information."
     },
+    "/projects/{projectId}": {
+      "schema": {
+        "$ref": "#/entities/ArchitectProject"
+      },
+      "description": "Stores all public projects."
+    },
     "/users/{userId}/projects/{projectId}": {
       "schema": {
         "$ref": "#/entities/ArchitectProject"
       },
-      "description": "Stores the analysis and chat projects for each user."
+      "description": "Stores the private analysis and chat projects for each user."
     }
   }
 }

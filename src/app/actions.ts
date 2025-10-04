@@ -28,15 +28,21 @@ export async function applyCodeChanges(files: GeneratedFile[]) {
 }
 
 
-export async function deleteProject(userId: string, projectId: string) {
-    if (!userId || !projectId) {
-        throw new Error("User ID and Project ID are required.");
+export async function deleteProject(projectId: string) {
+    if (!projectId) {
+        throw new Error("Project ID is required.");
     }
     
     const adminDb = getFirestore(getAdminApp());
 
     try {
-        const projectDocRef = adminDb.collection('users').doc(userId).collection('projects').doc(projectId);
+        const projectQuery = await adminDb.collectionGroup('projects').where('id', '==', projectId).limit(1).get();
+
+        if (projectQuery.empty) {
+            throw new Error("Project not found.");
+        }
+
+        const projectDocRef = projectQuery.docs[0].ref;
         await projectDocRef.delete();
         
         revalidatePath('/projects');

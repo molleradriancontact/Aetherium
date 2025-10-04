@@ -6,7 +6,7 @@ import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/sugges
 import { AppStateContext, HistoryItem } from '@/hooks/use-app-state';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFirebase } from '@/firebase';
-import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, collectionGroup, query, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
 import { generateProjectName } from '@/ai/flows/generate-project-name';
@@ -30,6 +30,7 @@ export interface ArchitectProject {
     name: string;
     createdAt: any;
     projectType: 'analysis' | 'chat';
+    isPublic?: boolean;
     analysisReport?: string | null;
     frontendSuggestions?: SuggestFrontendChangesFromAnalysisOutput | null;
     backendSuggestions?: SuggestBackendChangesFromAnalysisOutput | null;
@@ -135,64 +136,79 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
     }
-    
-    if (isUserLoading || !user || !firestore) {
-        if (!isUserLoading) {
-            setDetailedStatus(null);
-            if (projectId) clearState(false);
-        }
-        return;
+  
+    if (isUserLoading || !firestore) {
+      if (!isUserLoading) {
+        setDetailedStatus(null);
+        if (projectId) clearState(false);
+      }
+      return;
     }
-
+  
     if (!projectId) {
       setDetailedStatus(null);
       return;
     }
-
+  
     setDetailedStatus("Loading project details");
-
-    const docRef = doc(firestore, 'users', user.uid, 'projects', projectId);
-    
-    unsubscribeRef.current = onSnapshot(docRef, (snapshot: any) => {
-        if (snapshot.exists()) {
-            const projectData = snapshot.data() as ArchitectProject;
-            setProjectName(projectData.name);
-            setProjectType(projectData.projectType);
-            setAnalysisReport(projectData.analysisReport || null);
-            _setFrontendSuggestions(projectData.frontendSuggestions || null);
-            _setBackendSuggestions(projectData.backendSuggestions || null);
-            setUploadedFiles(projectData.uploadedFiles || []);
-            setChatHistory(projectData.chatHistory || []);
-            setProjectOwnerId(projectData.userId);
-            setCollaboratorDetails(projectData.collaboratorDetails || []);
-            
-            const historyWithDates = (projectData.history || []).map(h => ({...h, timestamp: (h.timestamp as any)?.toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)}));
-            setHistory(historyWithDates);
-        } else {
-            console.warn(`Project with id ${projectId} not found.`);
-            clearState(true);
-        }
-        setDetailedStatus(null);
-    }, (error: any) => {
-        console.error("Error loading project:", error);
-        setDetailedStatus(null);
+  
+    const projectsQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
+  
+    unsubscribeRef.current = onSnapshot(projectsQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        const projectDoc = snapshot.docs[0];
+        const projectData = projectDoc.data() as ArchitectProject;
+        
+        setProjectName(projectData.name);
+        setProjectType(projectData.projectType);
+        setAnalysisReport(projectData.analysisReport || null);
+        _setFrontendSuggestions(projectData.frontendSuggestions || null);
+        _setBackendSuggestions(projectData.backendSuggestions || null);
+        setUploadedFiles(projectData.uploadedFiles || []);
+        setChatHistory(projectData.chatHistory || []);
+        setProjectOwnerId(projectData.userId);
+        setCollaboratorDetails(projectData.collaboratorDetails || []);
+  
+        const historyWithDates = (projectData.history || []).map(h => ({
+          ...h,
+          timestamp: (h.timestamp as any)?.toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)
+        }));
+        setHistory(historyWithDates);
+  
+      } else {
+        console.warn(`Project with id ${projectId} not found.`);
         clearState(true);
+      }
+      setDetailedStatus(null);
+    }, (error: any) => {
+      console.error("Error loading project:", error);
+      setDetailedStatus(null);
+      clearState(true);
     });
-
+  
     return () => {
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
       }
     };
-  }, [user, isUserLoading, firestore, projectId, clearState]);
+  }, [firestore, projectId, isUserLoading, clearState]);
 
 
   const addHistory = useCallback(async (message: string) => {
     if (!user || !firestore || !projectId) return;
-    const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
+
+    const projectQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
+    const querySnapshot = await getDocs(projectQuery);
+
+    if (querySnapshot.empty) {
+        console.error("Project not found for history update");
+        return;
+    }
+    const projectRef = querySnapshot.docs[0].ref;
+
     const newHistoryItem = { id: Date.now(), message, timestamp: new Date() };
 
     let updatedHistory: HistoryItem[] = [];
@@ -209,7 +225,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, firestore, projectId]);
 
 
-  const startAnalysis = useCallback(async (files: UploadedFile[]) => {
+  const startAnalysis = useCallback(async (files: UploadedFile[], isPublic: boolean = false) => {
     if (!user || !firestore) {
       throw new Error("User or Firestore not available.");
     }
@@ -217,7 +233,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDetailedStatus("Creating new analysis project");
     clearState(false);
 
-    const projectRef = doc(collection(firestore, 'users', user.uid, 'projects'));
+    const collectionPath = isPublic ? 'projects' : `users/${user.uid}/projects`;
+    const projectRef = doc(collection(firestore, collectionPath));
     const newProjectId = projectRef.id;
 
     const initialProject: ArchitectProject = {
@@ -226,6 +243,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       name: `New Analysis - ${new Date().toLocaleString()}`,
       createdAt: serverTimestamp(),
       projectType: 'analysis',
+      isPublic: isPublic,
       uploadedFiles: files,
       history: [{ id: Date.now(), message: 'Project created.', timestamp: new Date() }],
     };
@@ -261,13 +279,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return newProjectId;
   }, [user, firestore, clearState, addHistory]);
 
-  const startChat = useCallback(async (initialMessage: Message) => {
+  const startChat = useCallback(async (initialMessage: Message, isPublic: boolean = false) => {
     if (!user || !firestore) throw new Error("User or Firestore not available.");
     
     setDetailedStatus("Starting new chat");
     clearState(false);
 
-    const projectRef = doc(collection(firestore, 'users', user.uid, 'projects'));
+    const collectionPath = isPublic ? 'projects' : `users/${user.uid}/projects`;
+    const projectRef = doc(collection(firestore, collectionPath));
     const newProjectId = projectRef.id;
 
     const initialChatProject: ArchitectProject = {
@@ -276,6 +295,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         name: initialMessage.content.substring(0, 30),
         createdAt: serverTimestamp(),
         projectType: 'chat',
+        isPublic: isPublic,
         chatHistory: [initialMessage]
     };
 
@@ -286,8 +306,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, firestore, clearState]);
 
   const addChatMessage = useCallback(async (projectId: string, message: Message) => {
-    if (!user || !firestore) return;
-    const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
+    if (!firestore) return;
+    
+    const projectQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
+    const querySnapshot = await getDocs(projectQuery);
+
+    if (querySnapshot.empty) {
+        console.error("Project not found for adding chat message");
+        return;
+    }
+    const projectRef = querySnapshot.docs[0].ref;
     
     let updatedChatHistory: Message[] = [];
     setChatHistory(currentHistory => {
@@ -296,23 +324,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     await updateDoc(projectRef, { chatHistory: updatedChatHistory });
-  }, [user, firestore]);
+  }, [firestore]);
 
   const setFrontendSuggestions = useCallback(async (suggestions: SuggestFrontendChangesFromAnalysisOutput | null) => {
+      if (!projectId || !firestore) return;
+      const projectQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
+      const querySnapshot = await getDocs(projectQuery);
+      if (querySnapshot.empty) return;
+      const projectRef = querySnapshot.docs[0].ref;
+
       _setFrontendSuggestions(suggestions);
-      if (projectId && user && firestore) {
-          const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
-          await updateDoc(projectRef, { frontendSuggestions: suggestions });
-      }
-  }, [projectId, user, firestore]);
+      await updateDoc(projectRef, { frontendSuggestions: suggestions });
+  }, [projectId, firestore]);
 
   const setBackendSuggestions = useCallback(async (suggestions: SuggestBackendChangesFromAnalysisOutput | null) => {
+      if (!projectId || !firestore) return;
+      const projectQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
+      const querySnapshot = await getDocs(projectQuery);
+      if (querySnapshot.empty) return;
+      const projectRef = querySnapshot.docs[0].ref;
+
       _setBackendSuggestions(suggestions);
-      if (projectId && user && firestore) {
-          const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
-          await updateDoc(projectRef, { backendSuggestions: suggestions });
-      }
-  }, [projectId, user, firestore]);
+      await updateDoc(projectRef, { backendSuggestions: suggestions });
+  }, [projectId, firestore]);
 
   const value = {
     isHydrated,
@@ -330,7 +364,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     projectId,
     setProjectId,
     uploadedFiles,
-    setUploadedFiles,
     startAnalysis,
     chatHistory,
     startChat,

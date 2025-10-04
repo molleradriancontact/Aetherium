@@ -25,10 +25,9 @@ export type AppState = {
   projectId: string | null;
   setProjectId: (id: string | null) => void;
   uploadedFiles: UploadedFile[];
-  setUploadedFiles: (files: UploadedFile[]) => void;
-  startAnalysis: (files: UploadedFile[]) => Promise<string>;
+  startAnalysis: (files: UploadedFile[], isPublic?: boolean) => Promise<string>;
   chatHistory: Message[];
-  startChat: (initialMessage: Message) => Promise<string>;
+  startChat: (initialMessage: Message, isPublic?: boolean) => Promise<string>;
   addChatMessage: (projectId: string, message: Message) => Promise<void>;
   projectName: string;
   projectType: 'analysis' | 'chat' | null;
