@@ -1,17 +1,16 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useFirebase, initiateEmailSignUp } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { GoogleAuthProvider, signInWithPopup, User, updateProfile } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, User, updateProfile, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -88,7 +87,7 @@ export default function SignUpPage() {
 
     setIsLoading(true);
     try {
-      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await handleUserCreation(userCredential.user);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Sign-up failed.', description: error.message });

@@ -2,7 +2,7 @@
 
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
+import { useFirebase, useDoc, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
 import { Loader2, Mail, Calendar, Save } from "lucide-react";
 import { doc } from "firebase/firestore";
 import { format } from 'date-fns';
@@ -15,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import React from "react";
 import { updateProfile } from "firebase/auth";
-import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+
 
 const profileSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(20, "Username must be at most 20 characters"),
