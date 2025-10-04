@@ -68,7 +68,7 @@ export function ChatInterface() {
     
     try {
         if (!projectId || !isChatProject) {
-            // This is the path for the FIRST message.
+            // This is the path for the FIRST message. It creates the project and gets the first AI response.
             startResponding(async () => {
                 await startChat(userMessage);
             });
@@ -203,3 +203,5 @@ export function ChatInterface() {
     </Card>
   );
 }
+
+    
