@@ -23,7 +23,6 @@ const chatFlow = ai.defineFlow(
   {
     name: 'chatFlow',
     inputSchema: z.object({
-        system: z.string(),
         history: z.array(MessageSchema),
         prompt: z.string(),
     }),
@@ -32,12 +31,14 @@ const chatFlow = ai.defineFlow(
         tool_code: z.string().optional(),
     }),
   },
-  async ({ system, history, prompt }) => {
+  async ({ history, prompt }) => {
     
+    const systemInstruction = `You are a helpful AI assistant for the Aetherium application. Your primary role is to communicate with the user and help them analyze their code or text. If the user provides a block of text and asks you to "save this" or "create a document from this", use the saveDocument tool to pass the content for saving. Do not add any commentary when using the tool, just call it. Otherwise, just respond as a helpful assistant.`;
+
     const llmResponse = await ai.generate({
       model: 'googleai/gemini-1.5-flash',
       tools: [saveDocumentTool],
-      system: system,
+      system: systemInstruction,
       history: history,
       prompt: prompt,
     });
@@ -63,13 +64,10 @@ const chatFlow = ai.defineFlow(
 export async function chat(messages: Message[]) {
   if (messages.length === 0) return { content: '' };
   
-  const systemInstruction = `You are a helpful AI assistant for the Aetherium application. Your primary role is to communicate with the user and help them analyze their code or text. If the user provides a block of text and asks you to "save this" or "create a document from this", use the saveDocument tool to pass the content for saving. Do not add any commentary when using the tool, just call it. Otherwise, just respond as a helpful assistant.`;
-
   const history = messages.slice(0, -1);
   const prompt = messages.at(-1)?.content ?? '';
 
   const result = await chatFlow({
-    system: systemInstruction,
     history: history,
     prompt: prompt,
   });
