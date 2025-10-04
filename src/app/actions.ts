@@ -98,7 +98,7 @@ export async function addCollaborator(ownerId: string, projectId: string, collab
     }
 }
 
-export async function removeCollaborator(ownerId: string, projectId: string, collaboratorId: string) {
+export async function removeCollaborator(ownerId: string, projectId: string, collaboratorId: string, collaboratorDetails: any) {
     if (!ownerId || !projectId || !collaboratorId) {
         throw new Error("Owner ID, Project ID, and Collaborator ID are required.");
     }
@@ -107,22 +107,11 @@ export async function removeCollaborator(ownerId: string, projectId: string, col
 
     try {
         const projectRef = db.collection('users').doc(ownerId).collection('projects').doc(projectId);
-        const projectDoc = await projectRef.get();
-
-        if (!projectDoc.exists) {
-            throw new Error("Project not found.");
-        }
         
-        const projectData = projectDoc.data()!;
-        const collaboratorDetailsToRemove = (projectData.collaboratorDetails || []).find((c: any) => c.id === collaboratorId);
-
-        const updates: any = {
-            collaborators: FieldValue.arrayRemove(collaboratorId)
+        const updates = {
+            collaborators: FieldValue.arrayRemove(collaboratorId),
+            collaboratorDetails: FieldValue.arrayRemove(collaboratorDetails)
         };
-
-        if (collaboratorDetailsToRemove) {
-            updates.collaboratorDetails = FieldValue.arrayRemove(collaboratorDetailsToRemove);
-        }
         
         await projectRef.update(updates);
 
