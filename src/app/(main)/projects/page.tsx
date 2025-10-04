@@ -24,12 +24,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useCollection } from "@/firebase/firestore/use-collection";
 
 export default function ProjectsPage() {
   const { user, firestore } = useFirebase();
   const { isHydrated, setProjectId, clearState } = useAppState();
-  const [projects, setProjects] = useState<ArchitectProject[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
   const [isDeleting, startDeleting] = useTransition();
@@ -40,39 +39,7 @@ export default function ProjectsPage() {
     return query(projectsRef, orderBy("createdAt", "desc"));
   }, [user, firestore]);
 
-  useEffect(() => {
-    if (!projectsQuery) {
-      setProjects([]);
-      setIsLoading(false);
-      return;
-    };
-    
-    setIsLoading(true);
-
-    const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
-      const userProjects = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          ...data,
-          id: doc.id,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-        } as ArchitectProject;
-      });
-
-      setProjects(userProjects);
-      setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching projects:", error);
-      setIsLoading(false);
-      toast({
-        title: "Error Fetching Projects",
-        description: error.message,
-        variant: "destructive"
-      });
-    });
-
-    return () => unsubscribe();
-  }, [projectsQuery, toast]);
+  const { data: projects, isLoading } = useCollection<ArchitectProject>(projectsQuery);
   
   const handleDelete = (projectId: string) => {
     if (!user) return;
@@ -115,7 +82,7 @@ export default function ProjectsPage() {
         subtitle="Manage all of your analysis and chat projects."
       />
 
-      {projects.length === 0 ? (
+      {projects && projects.length === 0 ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
             <LayoutGrid className="h-12 w-12 text-muted-foreground" />
             <CardTitle className="mt-4">No Projects Found</CardTitle>
@@ -125,12 +92,12 @@ export default function ProjectsPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
+            {projects && projects.map((project) => (
                 <Card key={project.id} className="flex flex-col">
                     <CardHeader>
                         <CardTitle className="truncate">{project.name}</CardTitle>
                         <CardDescription>
-                            Created on {format(project.createdAt, 'MMM d, yyyy')}
+                            Created on {project.createdAt ? format(new Date(project.createdAt.seconds * 1000), 'MMM d, yyyy') : 'Date unknown'}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex-grow">

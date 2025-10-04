@@ -6,9 +6,11 @@ import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/aut
 import { getFirestore } from 'firebase/firestore';
 
 let app: FirebaseApp;
+let appInitialized = false;
 
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
-export function initializeFirebase() {
+function ensureFirebaseInitialized() {
+  if (appInitialized) return;
+
   if (!getApps().length) {
     app = initializeApp(firebaseConfig);
   } else {
@@ -16,23 +18,19 @@ export function initializeFirebase() {
   }
 
   const auth = getAuth(app);
-  // Set persistence to session before returning the auth instance.
   setPersistence(auth, browserSessionPersistence);
-    
-  return getSdks(app);
+  appInitialized = true;
 }
 
-export function getSdks(app?: FirebaseApp) {
-  if (!app) {
-    if (getApps().length) {
-      app = getApp();
-    } else {
-      app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      setPersistence(auth, browserSessionPersistence);
-    }
-  }
 
+// IMPORTANT: DO NOT MODIFY THIS FUNCTION
+export function initializeFirebase() {
+  ensureFirebaseInitialized();
+  return getSdks();
+}
+
+export function getSdks() {
+  ensureFirebaseInitialized();
   return {
     firebaseApp: app,
     auth: getAuth(app),
