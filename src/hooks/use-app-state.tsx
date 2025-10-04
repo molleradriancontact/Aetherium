@@ -3,7 +3,7 @@
 
 import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest-backend-changes-from-analysis';
 import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/suggest-frontend-changes-from-analysis';
-import type { UploadedFile } from '@/app/provider';
+import type { UploadedFile, CollaboratorDetails } from '@/app/provider';
 import React, { createContext, useContext } from 'react';
 import type { Message } from '@/ai/flows/schemas';
 
@@ -32,6 +32,8 @@ export type AppState = {
   addChatMessage: (projectId: string, message: Message) => Promise<void>;
   projectName: string;
   projectType: 'analysis' | 'chat' | null;
+  projectOwnerId: string | null;
+  collaboratorDetails: CollaboratorDetails[];
 };
 
 export const AppStateContext = createContext<AppState | null>(null);

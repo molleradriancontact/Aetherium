@@ -106,7 +106,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [projectName, setProjectName] = useState<string>('');
   const [projectType, setProjectType] = useState<'analysis' | 'chat' | null>(null);
-  
+  const [projectOwnerId, setProjectOwnerId] = useState<string | null>(null);
+  const [collaboratorDetails, setCollaboratorDetails] = useState<CollaboratorDetails[]>([]);
+
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -124,6 +126,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setProjectName('');
     setProjectType(null);
     setDetailedStatus(null);
+    setProjectOwnerId(null);
+    setCollaboratorDetails([]);
     if (forceNav) {
         router.push('/');
     }
@@ -144,7 +148,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!projectId) {
-      // clearState(false); No need to clear if no project is selected
       setDetailedStatus(null);
       return;
     }
@@ -163,6 +166,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             _setBackendSuggestions(projectData.backendSuggestions || null);
             setUploadedFiles(projectData.uploadedFiles || []);
             setChatHistory(projectData.chatHistory || []);
+            setProjectOwnerId(projectData.userId);
+            setCollaboratorDetails(projectData.collaboratorDetails || []);
             
             const historyWithDates = (projectData.history || []).map(h => ({...h, timestamp: (h.timestamp as any)?.toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)}));
             setHistory(historyWithDates);
@@ -190,15 +195,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
     const newHistoryItem = { id: Date.now(), message, timestamp: new Date() };
 
-    // Create a new array for the update.
-    // Use the functional form of setHistory to get the latest state.
     let updatedHistory: HistoryItem[] = [];
     setHistory(currentHistory => {
         updatedHistory = [...currentHistory, newHistoryItem];
         return updatedHistory;
     });
 
-    await updateDoc(projectRef, { history: updatedHistory });
+    try {
+        await updateDoc(projectRef, { history: updatedHistory });
+    } catch (e) {
+        console.error("Failed to update history in Firestore:", e);
+    }
   }, [user, firestore, projectId]);
 
 
@@ -330,6 +337,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addChatMessage,
     projectName,
     projectType,
+    projectOwnerId,
+    collaboratorDetails,
   };
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

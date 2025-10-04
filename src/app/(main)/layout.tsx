@@ -25,6 +25,7 @@ import {
   Home,
   User,
   LayoutGrid,
+  Users,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
@@ -40,6 +41,7 @@ const navItems = [
   { href: '/frontend', label: 'Frontend', icon: Code },
   { href: '/backend', label: 'Backend', icon: Database },
   { href: '/prototype', label: 'Prototype', icon: FlaskConical },
+  { href: '/collaboration', label: 'Collaboration', icon: Users },
   { href: '/history', label: 'History', icon: GitBranch },
   { href: '/account', label: 'Account', icon: User },
 ];
