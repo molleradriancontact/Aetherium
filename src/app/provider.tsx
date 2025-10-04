@@ -9,8 +9,6 @@ import { useFirebase } from '@/firebase';
 import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, query, orderBy, limit, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
-import { suggestBackendChangesFromAnalysis } from '@/ai/flows/suggest-backend-changes-from-analysis';
-import { suggestFrontendChangesFromAnalysis } from '@/ai/flows/suggest-frontend-changes-from-analysis';
 import { generateProjectName } from '@/ai/flows/generate-project-name';
 import type { Message } from '@/ai/flows/schemas';
 
@@ -101,8 +99,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const [analysisReport, setAnalysisReport] = useState<string | null>(null);
-  const [frontendSuggestions, setFrontendSuggestions] = useState<SuggestFrontendChangesFromAnalysisOutput | null>(null);
-  const [backendSuggestions, setBackendSuggestions] = useState<SuggestBackendChangesFromAnalysisOutput | null>(null);
+  const [frontendSuggestions, _setFrontendSuggestions] = useState<SuggestFrontendChangesFromAnalysisOutput | null>(null);
+  const [backendSuggestions, _setBackendSuggestions] = useState<SuggestBackendChangesFromAnalysisOutput | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
@@ -118,8 +116,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const clearState = useCallback((forceNav = false) => {
     setProjectId(null);
     setAnalysisReport(null);
-    setFrontendSuggestions(null);
-    setBackendSuggestions(null);
+    _setFrontendSuggestions(null);
+    _setBackendSuggestions(null);
     setHistory([]);
     setUploadedFiles([]);
     setChatHistory([]);
@@ -161,8 +159,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setProjectName(projectData.name);
             setProjectType(projectData.projectType);
             setAnalysisReport(projectData.analysisReport || null);
-            setFrontendSuggestions(projectData.frontendSuggestions || null);
-            setBackendSuggestions(projectData.backendSuggestions || null);
+            _setFrontendSuggestions(projectData.frontendSuggestions || null);
+            _setBackendSuggestions(projectData.backendSuggestions || null);
             setUploadedFiles(projectData.uploadedFiles || []);
             setChatHistory(projectData.chatHistory || []);
             
@@ -229,27 +227,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const fileStructure = createTree(files.map(f => ({ path: f.path })));
         const codeSnippets = files.map(file => `--- ${file.path} ---\n${file.content}`).join('\n\n');
 
-        setDetailedStatus('Generating project name');
+        setDetailedStatus('Generating project name...');
         await addHistory(newProjectId, 'Generating project name...');
         const nameResult = await generateProjectName({ fileContents: codeSnippets });
         await updateDoc(projectRef, { name: nameResult.projectName });
 
-        setDetailedStatus('Generating analysis report');
+        setDetailedStatus('Generating analysis report...');
         await addHistory(newProjectId, 'Generating analysis report...');
         const reportResult = await generateInitialAnalysisReport({ fileStructure, codeSnippets });
         await updateDoc(projectRef, { analysisReport: reportResult.report });
         
-        setDetailedStatus('Generating frontend suggestions');
-        await addHistory(newProjectId, 'Generating frontend suggestions...');
-        const frontendResult = await suggestFrontendChangesFromAnalysis({ analysisReport: reportResult.report });
-        await updateDoc(projectRef, { frontendSuggestions: frontendResult });
-
-        setDetailedStatus('Generating backend suggestions');
-        await addHistory(newProjectId, 'Generating backend suggestions...');
-        const backendResult = await suggestBackendChangesFromAnalysis({ analysisReport: reportResult.report });
-        await updateDoc(projectRef, { backendSuggestions: backendResult });
-
-        await addHistory(newProjectId, 'Analysis complete.');
+        await addHistory(newProjectId, 'Analysis complete. You can now generate suggestions.');
       } catch (aiError: any) {
         console.error("AI analysis failed:", aiError);
         const errorMessage = aiError.message || "An unknown AI error occurred.";
@@ -292,6 +280,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await updateDoc(projectRef, { chatHistory: updatedHistory });
   }, [user, firestore, chatHistory]);
 
+  const setFrontendSuggestions = useCallback(async (suggestions: SuggestFrontendChangesFromAnalysisOutput | null) => {
+      _setFrontendSuggestions(suggestions);
+      if (projectId && user && firestore) {
+          const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
+          await updateDoc(projectRef, { frontendSuggestions: suggestions });
+      }
+  }, [projectId, user, firestore]);
+
+  const setBackendSuggestions = useCallback(async (suggestions: SuggestBackendChangesFromAnalysisOutput | null) => {
+      _setBackendSuggestions(suggestions);
+      if (projectId && user && firestore) {
+          const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
+          await updateDoc(projectRef, { backendSuggestions: suggestions });
+      }
+  }, [projectId, user, firestore]);
 
   const value = {
     isHydrated,

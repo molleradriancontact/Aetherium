@@ -31,6 +31,7 @@ interface PrototypingInterfaceProps {
 export function PrototypingInterface({ enabledScopes, header }: PrototypingInterfaceProps) {
   const { analysisReport, frontendSuggestions, backendSuggestions, addHistory, detailedStatus, setDetailedStatus } = useAppState();
   const [isApplying, startApplying] = useTransition();
+  const [isPrototyping, startPrototyping] = useTransition();
   const [generatedFiles, setGeneratedFiles] = useState<GeneratedFile[] | null>(null);
   const { toast } = useToast();
   
@@ -40,52 +41,54 @@ export function PrototypingInterface({ enabledScopes, header }: PrototypingInter
 
   const handleGeneratePrototype = async () => {
     setGeneratedFiles(null);
-    addHistory("Starting prototyping phase...");
+    
+    startPrototyping(async () => {
+      addHistory("Starting prototyping phase...");
+      try {
+        let allModifications: GeneratedFile[] = [];
 
-    try {
-      let allModifications: GeneratedFile[] = [];
-
-      if (shouldPrototypeFrontend) {
-        setDetailedStatus("Prototyping frontend modifications");
-        addHistory("Prototyping frontend modifications...");
-        const result = await suggestFrontendModifications({
-            analysisReport: analysisReport!,
-            userArchitecture: frontendSuggestions!.reasoning,
-        });
-        if(result.files) {
-            allModifications = [...allModifications, ...result.files];
+        if (shouldPrototypeFrontend) {
+          setDetailedStatus("Prototyping frontend modifications");
+          addHistory("Prototyping frontend modifications...");
+          const result = await suggestFrontendModifications({
+              analysisReport: analysisReport!,
+              userArchitecture: frontendSuggestions!.reasoning,
+          });
+          if(result.files) {
+              allModifications = [...allModifications, ...result.files];
+          }
+          addHistory("Frontend prototyping complete.");
         }
-        addHistory("Frontend prototyping complete.");
-      }
 
-      if (shouldPrototypeBackend) {
-        setDetailedStatus("Prototyping backend modifications");
-        addHistory("Prototyping backend modifications...");
-        const result = await suggestBackendModifications({
-            analysisReport: analysisReport!,
-            userArchitecture: backendSuggestions!.reasoning,
-        });
-        if(result.files) {
-            allModifications = [...allModifications, ...result.files];
+        if (shouldPrototypeBackend) {
+          setDetailedStatus("Prototyping backend modifications");
+          addHistory("Prototyping backend modifications...");
+          const result = await suggestBackendModifications({
+              analysisReport: analysisReport!,
+              userArchitecture: backendSuggestions!.reasoning,
+          });
+          if(result.files) {
+              allModifications = [...allModifications, ...result.files];
+          }
+          addHistory("Backend prototyping complete.");
         }
-        addHistory("Backend prototyping complete.");
+
+        setGeneratedFiles(allModifications);
+        addHistory("All prototyping complete. Review the generated files.");
+
+      } catch (error) {
+        console.error("Prototyping failed", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        addHistory(`Prototyping failed: ${errorMessage}`);
+        toast({
+            title: "Prototyping Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+      } finally {
+        setDetailedStatus(null);
       }
-
-      setGeneratedFiles(allModifications);
-      addHistory("All prototyping complete. Review the generated files.");
-
-    } catch (error) {
-      console.error("Prototyping failed", error);
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-      addHistory(`Prototyping failed: ${errorMessage}`);
-       toast({
-          title: "Prototyping Failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-    } finally {
-      setDetailedStatus(null);
-    }
+    });
   };
 
   const handleApplyChanges = () => {
@@ -117,7 +120,7 @@ export function PrototypingInterface({ enabledScopes, header }: PrototypingInter
     });
   }
   
-  const isLoading = !!detailedStatus;
+  const isLoading = !!detailedStatus || isPrototyping;
 
   return (
     <div className="space-y-8">
@@ -132,7 +135,7 @@ export function PrototypingInterface({ enabledScopes, header }: PrototypingInter
                 <CardContent>
                     <Button onClick={handleGeneratePrototype} disabled={isLoading || isApplying}>
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {detailedStatus ? `${detailedStatus}...` : 'Generate Code Prototype'}
+                        {detailedStatus || (isPrototyping ? 'Prototyping...' : 'Generate Code Prototype')}
                     </Button>
                 </CardContent>
             </Card>
