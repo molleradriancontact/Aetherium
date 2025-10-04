@@ -49,8 +49,13 @@ export function FileUpload() {
   const handleFileNameChange = (index: number, newPath: string) => {
     setFiles(prevFiles => {
       const updatedFiles = [...prevFiles];
-      const file = updatedFiles[index] as FileWithPath & {path: string};
-      file.path = newPath;
+      const originalFile = updatedFiles[index];
+      
+      // Create a new File object with the same content but a new path property
+      const newFile = new File([originalFile], newPath, { type: originalFile.type }) as FileWithPath;
+      newFile.path = newPath;
+      updatedFiles[index] = newFile;
+      
       return updatedFiles;
     });
   };
@@ -58,45 +63,57 @@ export function FileUpload() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     getFilesFromEvent: async (event: any) => {
-        const files = event.dataTransfer ? event.dataTransfer.files : event.target.files;
-        const fileList: File[] = Array.from(files);
-
-        const getFile = (file: File, path = '') => {
-            (file as any).path = path + file.name;
-            return file as FileWithPath;
-        };
-
-        const getFiles = async (entry: any): Promise<FileWithPath[]> => {
-            if (entry.isFile) {
-                return new Promise((resolve, reject) => {
-                    entry.file((file: File) => resolve([getFile(file, entry.fullPath.substring(0, entry.fullPath.lastIndexOf('/') + 1))]), reject);
-                });
-            }
-            if (entry.isDirectory) {
-                return new Promise<FileWithPath[]>((resolve, reject) => {
-                    const dirReader = entry.createReader();
-                    dirReader.readEntries(async (entries: any[]) => {
-                        const allFiles = await Promise.all(entries.map(getFiles));
-                        resolve(allFiles.flat());
-                    }, reject);
-                });
+        const fileList: File[] = [];
+        const items = event.dataTransfer?.items;
+  
+        if (items) {
+          const promises = Array.from(items).map(async (item: any) => {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+              return getFilesFromEntry(entry);
             }
             return [];
-        };
+          });
+          const allFiles = await Promise.all(promises);
+          fileList.push(...allFiles.flat());
+        } else if (event.target.files) {
+            fileList.push(...Array.from(event.target.files));
+        }
 
-        const filesFromEntries = await Promise.all(
-            Array.from(event.dataTransfer?.items || [])
-            .map(item => item.webkitGetAsEntry())
-            .filter(entry => entry)
-            .map(getFiles)
-        );
-
-        return [...fileList, ...filesFromEntries.flat()];
-    }
+        // Add a default path if it doesn't exist (for single file uploads)
+        return fileList.map(f => {
+            const fileWithPath = f as FileWithPath;
+            if (!fileWithPath.path) {
+                fileWithPath.path = fileWithPath.name;
+            }
+            return fileWithPath;
+        });
+      },
   });
 
+  const getFilesFromEntry = async (entry: any, path = ''): Promise<FileWithPath[]> => {
+    if (entry.isFile) {
+      return new Promise((resolve, reject) => {
+        entry.file((file: File) => {
+          const fileWithPath = file as FileWithPath;
+          fileWithPath.path = path + file.name;
+          resolve([fileWithPath]);
+        }, reject);
+      });
+    } else if (entry.isDirectory) {
+      return new Promise((resolve, reject) => {
+        const dirReader = entry.createReader();
+        dirReader.readEntries(async (entries: any[]) => {
+          const allFiles = await Promise.all(entries.map(innerEntry => getFilesFromEntry(innerEntry, path + entry.name + '/')));
+          resolve(allFiles.flat());
+        }, reject);
+      });
+    }
+    return [];
+  };
+
   const fileList = useMemo(() => files.map((file, index) => (
-    <li key={`${file.path}-${file.size}`} className="text-sm text-muted-foreground flex items-center gap-2">
+    <li key={`${file.path}-${file.size}-${index}`} className="text-sm text-muted-foreground flex items-center gap-2">
       <Input
         value={file.path || ''}
         onChange={(e) => handleFileNameChange(index, e.target.value)}
