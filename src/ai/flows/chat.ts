@@ -45,18 +45,17 @@ const chatFlow = ai.defineFlow(
 
     const choice = llmResponse.choices[0];
     
-    if (choice.finishReason === 'toolCode') {
-        const toolCall = choice.message.toolCalls?.[0];
-        if (toolCall) {
-            return {
-                content: choice.text,
-                tool_code: JSON.stringify(toolCall, null, 2),
-            };
-        }
+    if (choice.finishReason === 'toolCode' && choice.message.toolCalls) {
+      // Genkit returns tool-calling requests as `toolCode`. We'll pass the first one back to the client.
+      const toolCall = choice.message.toolCalls[0];
+      return {
+          content: choice.text ?? '',
+          tool_code: JSON.stringify(toolCall, null, 2),
+      };
     }
     
     return {
-        content: choice.text,
+        content: choice.text ?? '',
     };
   }
 );
@@ -73,15 +72,20 @@ export async function chat(messages: Message[]) {
   });
   
   if (result.tool_code) {
-    const toolData = JSON.parse(result.tool_code);
-    if (toolData.function?.name === 'saveDocument') {
-        return {
-            content: result.content,
-            functionCall: {
-                name: toolData.function.name,
-                args: toolData.function.args,
-            },
-        };
+    try {
+        const toolData = JSON.parse(result.tool_code);
+        if (toolData.function?.name === 'saveDocument') {
+            return {
+                content: result.content,
+                functionCall: {
+                    name: toolData.function.name,
+                    args: toolData.function.args,
+                },
+            };
+        }
+    } catch (e) {
+        console.error("Error parsing tool code:", e);
+        // Fall through to return the text content if parsing fails
     }
   }
   
