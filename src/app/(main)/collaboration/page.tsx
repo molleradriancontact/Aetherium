@@ -48,10 +48,10 @@ export default function CollaborationPage() {
   });
 
   const handleAddCollaborator = (data: CollaboratorFormValues) => {
-    if (!isOwner || !projectId || !user) return;
+    if (!isOwner || !projectId) return;
     startTransition(async () => {
       try {
-        await addCollaborator(user.uid, projectId, data.email);
+        await addCollaborator(projectId, data.email);
         toast({
           title: "Collaborator Added",
           description: `An invitation has been sent to ${data.email}.`,
@@ -69,10 +69,10 @@ export default function CollaborationPage() {
   }
 
   const handleRemoveCollaborator = (collaborator: any) => {
-    if (!isOwner || !projectId || !user) return;
+    if (!isOwner || !projectId) return;
     startTransition(async () => {
       try {
-        await removeCollaborator(user.uid, projectId, collaborator.id, collaborator);
+        await removeCollaborator(projectId, collaborator.id, collaborator);
         toast({
           title: "Collaborator Removed",
           description: "The user has been removed from the project.",
@@ -183,15 +183,16 @@ export default function CollaborationPage() {
               <CardContent>
                 <form onSubmit={handleSubmit(handleAddCollaborator)} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
+                    <Label htmlFor="email" className="sr-only">Email Address</Label>
                      <Controller
                         name="email"
                         control={control}
                         render={({ field }) => (
                           <div className="relative">
-                            <Input id="email" type="email" placeholder="collaborator@example.com" {...field} disabled={isSubmitting || isPending} />
-                            <Button type="submit" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" disabled={isSubmitting || isPending}>
+                            <Input id="email" type="email" placeholder="collaborator@example.com" {...field} disabled={isSubmitting || isPending} className="pr-12"/>
+                            <Button type="submit" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" disabled={isSubmitting || isPending || !field.value}>
                               {isSubmitting || isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                              <span className="sr-only">Add Collaborator</span>
                             </Button>
                           </div>
                         )}

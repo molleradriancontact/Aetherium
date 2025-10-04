@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
@@ -50,9 +49,9 @@ export async function deleteProject(userId: string, projectId: string) {
     }
 }
 
-export async function addCollaborator(ownerId: string, projectId: string, collaboratorEmail: string) {
-    if (!ownerId || !projectId || !collaboratorEmail) {
-        throw new Error("Owner ID, Project ID, and Collaborator Email are required.");
+export async function addCollaborator(projectId: string, collaboratorEmail: string) {
+    if (!projectId || !collaboratorEmail) {
+        throw new Error("Project ID and Collaborator Email are required.");
     }
     
     const db = getFirestore(getAdminApp());
@@ -61,14 +60,22 @@ export async function addCollaborator(ownerId: string, projectId: string, collab
     try {
         const userRecord = await auth.getUserByEmail(collaboratorEmail);
         const collaboratorId = userRecord.uid;
+        
+        const projectQuery = await db.collectionGroup('projects').where('id', '==', projectId).limit(1).get();
+
+        if (projectQuery.empty) {
+            throw new Error("Project not found.");
+        }
+        
+        const projectDoc = projectQuery.docs[0];
+        const projectRef = projectDoc.ref;
+        const projectData = projectDoc.data();
+        const ownerId = projectData.userId;
 
         if (ownerId === collaboratorId) {
             throw new Error("You cannot add yourself as a collaborator.");
         }
         
-        const projectRef = db.collection('users').doc(ownerId).collection('projects').doc(projectId);
-        
-        // Fetch collaborator's user profile to get their username
         const collaboratorUserRef = db.collection('users').doc(collaboratorId);
         const collaboratorDoc = await collaboratorUserRef.get();
         if (!collaboratorDoc.exists) {
@@ -98,15 +105,21 @@ export async function addCollaborator(ownerId: string, projectId: string, collab
     }
 }
 
-export async function removeCollaborator(ownerId: string, projectId: string, collaboratorId: string, collaboratorDetails: any) {
-    if (!ownerId || !projectId || !collaboratorId) {
-        throw new Error("Owner ID, Project ID, and Collaborator ID are required.");
+export async function removeCollaborator(projectId: string, collaboratorId: string, collaboratorDetails: any) {
+    if (!projectId || !collaboratorId) {
+        throw new Error("Project ID, and Collaborator ID are required.");
     }
     
     const db = getFirestore(getAdminApp());
 
     try {
-        const projectRef = db.collection('users').doc(ownerId).collection('projects').doc(projectId);
+        const projectQuery = await db.collectionGroup('projects').where('id', '==', projectId).limit(1).get();
+
+        if (projectQuery.empty) {
+            throw new Error("Project not found.");
+        }
+
+        const projectRef = projectQuery.docs[0].ref;
         
         const updates = {
             collaborators: FieldValue.arrayRemove(collaboratorId),
