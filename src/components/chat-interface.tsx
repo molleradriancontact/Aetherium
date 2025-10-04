@@ -66,33 +66,34 @@ export function ChatInterface() {
     const currentInput = input;
     setInput('');
     
+    let currentProjectId = projectId;
+    
     try {
-        if (!projectId || !isChatProject) {
-            // This is the first message of a new chat.
-            // `startChat` will create the project and add the first message.
+        if (!currentProjectId || !isChatProject) {
             startResponding(async () => {
                 const newProjectId = await startChat(userMessage);
                 if (newProjectId) {
+                    currentProjectId = newProjectId;
                     // After the project is created, immediately call the AI for a response.
-                    const result = await chat([], userMessage.content);
+                    const result = await chat([userMessage], userMessage.content);
                     const aiResponse: Message = { role: 'model', content: result.content };
                     await addChatMessage(newProjectId, aiResponse);
                 }
             });
         } else {
             // This is a subsequent message in an existing chat.
-            await addChatMessage(projectId, userMessage);
+            await addChatMessage(currentProjectId, userMessage);
             startResponding(async () => {
-                const historyForAI = [...(chatHistory || [])]; // Use the latest history
-                const result = await chat(historyForAI, userMessage.content);
+                const historyForAI = [...(chatHistory || []), userMessage]; // Use the latest history
+                const result = await chat(historyForAI, currentInput);
                 const aiResponse: Message = { role: 'model', content: result.content };
                 
                 if (result.functionCall?.name === 'saveDocument') {
-                    await addChatMessage(projectId, aiResponse);
+                    await addChatMessage(currentProjectId!, aiResponse);
                     const textToSave = result.functionCall.args.content;
                     await handleSaveDocument(textToSave);
                 } else {
-                    await addChatMessage(projectId, aiResponse);
+                    await addChatMessage(currentProjectId!, aiResponse);
                 }
             });
         }
@@ -100,8 +101,8 @@ export function ChatInterface() {
       console.error('Chat error:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
       const errorResponse: Message = { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` };
-      if (projectId) {
-          await addChatMessage(projectId, errorResponse);
+      if (currentProjectId) {
+          await addChatMessage(currentProjectId, errorResponse);
       }
     }
   };

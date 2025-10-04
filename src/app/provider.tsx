@@ -324,7 +324,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user || !firestore) throw new Error("User or Firestore not available.");
     
     setDetailedStatus("Starting new chat");
-    
+    clearState(false);
+
     const collectionPath = isPublic ? 'projects' : `users/${user.uid}/projects`;
     const projectRef = doc(collection(firestore, collectionPath));
     const newProjectId = projectRef.id;
@@ -340,11 +341,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     await setDoc(projectRef, initialChatProject);
-    
     setProjectId(newProjectId, projectRef.path);
+    setDetailedStatus(null);
 
     return newProjectId;
-  }, [user, firestore]);
+  }, [user, firestore, clearState]);
 
   const addChatMessage = useCallback(async (projectId: string, message: Message) => {
     if (!firestore) return;
