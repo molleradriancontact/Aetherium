@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useFirebase, initiateEmailSignIn, initiateGoogleSignIn } from '@/firebase';
@@ -39,7 +39,7 @@ export default function LoginPage() {
   
   const [pendingCred, setPendingCred] = useState<OAuthCredential | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if(!isUserLoading && user) {
         router.push('/');
     }
