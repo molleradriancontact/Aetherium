@@ -24,10 +24,8 @@ export function ChatInterface() {
   const { startAnalysis, projectId, projectType, chatHistory, startChat, addChatMessage, detailedStatus, clearState } = useAppState();
 
   const isChatProject = projectType === 'chat';
-
   const messages = isChatProject ? chatHistory : [];
   const isLoading = !!detailedStatus;
-
 
   const scrollToBottom = () => {
     if (scrollAreaViewportRef.current) {
@@ -73,20 +71,19 @@ export function ChatInterface() {
     setIsResponding(true);
 
     let currentProjectId = projectId;
-    const currentChatHistory = [...(isChatProject ? chatHistory : [])];
     
-    // If it's a new chat, create the project first.
     if (!currentProjectId || !isChatProject) {
         currentProjectId = await startChat(userMessage);
     } else {
         await addChatMessage(currentProjectId, userMessage);
     }
     
-    currentChatHistory.push(userMessage);
+    const currentHistory = isChatProject ? [...chatHistory, userMessage] : [userMessage];
+    const historyForAI = currentHistory.slice(0, -1);
+    const promptForAI = currentHistory.at(-1)?.content ?? '';
 
-    // Now, call the AI with the most up-to-date history.
     try {
-      const result = await chat(currentChatHistory);
+      const result = await chat(historyForAI, promptForAI);
       const aiResponse: Message = { role: 'model', content: result.content };
       
       if (result.functionCall?.name === 'saveDocument') {

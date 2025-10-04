@@ -60,16 +60,8 @@ const chatFlow = ai.defineFlow(
   }
 );
 
-export async function chat(messages: Message[]) {
-  if (messages.length === 0) return { content: '' };
-  
-  const history = messages.slice(0, -1);
-  const prompt = messages.at(-1)?.content ?? '';
-
-  const result = await chatFlow({
-    history: history,
-    prompt: prompt,
-  });
+export async function chat(history: Message[], prompt: string) {
+  const result = await chatFlow({ history, prompt });
   
   if (result.tool_code) {
     try {
