@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -38,6 +39,7 @@ export default function SignUpPage() {
   
   useEffect(() => {
     if(!isUserLoading && user) {
+        sessionStorage.removeItem('manual_logout');
         router.push('/');
     }
   }, [user, isUserLoading, router]);
@@ -214,5 +216,3 @@ export default function SignUpPage() {
     </div>
   );
 }
-
-    

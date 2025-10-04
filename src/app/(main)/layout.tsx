@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2 } from 'lucide-react';
 
@@ -60,18 +60,16 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const { clearState } = useAppState();
   const { auth, user, isUserLoading } = useFirebase();
   const router = useRouter();
-  const isSigningOut = useRef(false);
-
 
   useEffect(() => {
-    if (!isUserLoading && !user && !isSigningOut.current) {
+    if (!isUserLoading && !user) {
       router.push('/login');
     }
   }, [isUserLoading, user, router]);
 
   const handleLogout = async () => {
     if (auth) {
-        isSigningOut.current = true;
+        sessionStorage.setItem('manual_logout', 'true');
         await auth.signOut();
         clearState(true);
         router.push('/login');

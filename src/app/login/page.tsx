@@ -41,6 +41,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if(!isUserLoading && user) {
+        sessionStorage.removeItem('manual_logout');
         router.push('/');
     }
   }, [user, isUserLoading, router]);
@@ -198,5 +199,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
@@ -60,8 +61,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     userError: null,
   });
 
-  const isSigningOut = useRef(false);
-
   useEffect(() => {
     if (!auth) {
       setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
@@ -70,11 +69,19 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
+        // User is signed in.
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
-        isSigningOut.current = false;
+        sessionStorage.removeItem('manual_logout');
       } else {
-         // If we are not in the process of signing out, and there's no user, try to sign in anonymously.
-        if (!isSigningOut.current) {
+        // User is signed out.
+        const manualLogout = sessionStorage.getItem('manual_logout');
+        if (manualLogout === 'true') {
+          // If the user manually logged out, do not sign them in anonymously.
+          // The flag will be cleared on the next manual sign-in.
+          setUserAuthState({ user: null, isUserLoading: false, userError: null });
+        } else {
+          // If it's not a manual logout (e.g., initial load, session expired),
+          // attempt to sign in anonymously.
           signInAnonymously(auth).catch((error) => {
             console.error("FirebaseProvider: Anonymous sign-in failed.", error);
             toast({
@@ -84,9 +91,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             });
             setUserAuthState({ user: null, isUserLoading: false, userError: error });
           });
-        } else {
-            // If we are signing out, just update the state to reflect no user is logged in.
-            setUserAuthState({ user: null, isUserLoading: false, userError: null });
         }
       }
     }, (error) => {
@@ -98,18 +102,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       });
       setUserAuthState({ user: null, isUserLoading: false, userError: error });
     });
-
-    const originalSignOut = auth.signOut.bind(auth);
-    auth.signOut = async () => {
-        isSigningOut.current = true;
-        await originalSignOut();
-        // after sign out, the onAuthStateChanged listener will handle the state update
-    };
   
-    return () => {
-        unsubscribe();
-        auth.signOut = originalSignOut; // Restore original sign out
-    };
+    return () => unsubscribe();
   }, [auth, toast]);
 
   const contextValue = useMemo((): FirebaseContextState => {
