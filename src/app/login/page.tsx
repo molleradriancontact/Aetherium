@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -39,11 +40,18 @@ export default function LoginPage() {
   const [pendingCred, setPendingCred] = useState<OAuthCredential | null>(null);
 
   useEffect(() => {
-    if(!isUserLoading && user) {
-        sessionStorage.removeItem('manual_logout');
+    if (!isUserLoading && user) {
         router.push('/');
     }
   }, [user, isUserLoading, router]);
+
+  useEffect(() => {
+    // This effect runs only on the client, after hydration
+    if (!isUserLoading && user) {
+      sessionStorage.removeItem('manual_logout');
+    }
+  }, [user, isUserLoading]);
+
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,3 +205,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
