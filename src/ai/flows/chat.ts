@@ -42,13 +42,15 @@ const chatFlow = ai.defineFlow(
     });
 
     const choice = llmResponse.choices[0];
-    const toolCall = choice.message.toolCalls?.[0];
-
-    if (toolCall) {
-        return {
-            content: choice.text,
-            tool_code: JSON.stringify(toolCall, null, 2),
-        };
+    
+    if (choice.finishReason === 'toolCode') {
+        const toolCall = choice.message.toolCalls?.[0];
+        if (toolCall) {
+            return {
+                content: choice.text,
+                tool_code: JSON.stringify(toolCall, null, 2),
+            };
+        }
     }
     
     return {

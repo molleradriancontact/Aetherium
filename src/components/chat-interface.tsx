@@ -69,19 +69,19 @@ export function ChatInterface() {
 
     const userMessage: Message = { role: 'user', content: input };
     let currentProjectId = projectId;
+    const currentMessages = [...(chatHistory || []), userMessage];
 
     setIsResponding(true);
+    setInput('');
 
     if (!currentProjectId || !isChatProject) {
         currentProjectId = await startChat(userMessage);
     } else {
         await addChatMessage(currentProjectId, userMessage);
     }
-
-    setInput('');
-
+    
     try {
-      const result = await chat([...messages, userMessage]);
+      const result = await chat(currentMessages);
       const aiResponse: Message = { role: 'model', content: result.content };
       
       if (result.functionCall?.name === 'saveDocument') {
