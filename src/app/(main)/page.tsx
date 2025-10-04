@@ -5,12 +5,12 @@ import { useAppState } from "@/hooks/use-app-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowRight, FileText, Code, Database, Loader2, FlaskConical, LayoutGrid } from "lucide-react";
+import { ArrowRight, FileText, Code, Database, Loader2, LayoutGrid } from "lucide-react";
 import { ProjectChatInterface } from "@/components/project-chat-interface";
+import { WelcomeCard } from "@/components/welcome-card";
 
 export default function HomePage() {
   const { isHydrated, analysisReport, frontendSuggestions, backendSuggestions, detailedStatus, projectName } = useAppState();
-  const isLoading = !!detailedStatus;
 
   if (!isHydrated) {
     return (
@@ -24,32 +24,11 @@ export default function HomePage() {
     <div className="space-y-8">
       <PageHeader 
         title={analysisReport ? projectName || "Dashboard" : "Welcome to Aetherium"}
-        subtitle={!analysisReport ? "Start a new project or open an existing one." : "Continue working on your project."}
+        subtitle={!analysisReport ? "Let's build something new." : "Continue working on your project."}
       />
       
       {!analysisReport ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="flex flex-col items-center justify-center p-8 text-center">
-            <FlaskConical className="h-12 w-12 text-muted-foreground" />
-            <CardTitle className="mt-4">Start a New Project</CardTitle>
-            <CardDescription className="mt-2 mb-6">
-                Analyze files or chat with the AI to begin prototyping.
-            </CardDescription>
-            <Link href="/prototype" >
-                <Button>Go to Prototype <ArrowRight className="ml-2 h-4 w-4" /></Button>
-            </Link>
-          </Card>
-          <Card className="flex flex-col items-center justify-center p-8 text-center">
-            <LayoutGrid className="h-12 w-12 text-muted-foreground" />
-            <CardTitle className="mt-4">Open an Existing Project</CardTitle>
-            <CardDescription className="mt-2 mb-6">
-                Browse and manage all of your past projects.
-            </CardDescription>
-            <Link href="/projects" >
-                <Button>View Projects <ArrowRight className="ml-2 h-4 w-4" /></Button>
-            </Link>
-          </Card>
-        </div>
+        <WelcomeCard />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
@@ -103,10 +82,22 @@ export default function HomePage() {
                                 {backendSuggestions.suggestedChanges}
                             </p>
                         ) : (
-                            <p className="text-xs text-muted-foreground mb-4">Optimize your server-side logic and architecture.</p>
+                            <p className="text-xs text-muted-foreground mb-4">Optimize your server-side logic and a rchitecture.</p>
                         )}
                         <Link href="/backend">
                             <Button variant="secondary">View Suggestions</Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-start justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Manage Projects</CardTitle>
+                        <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-xs text-muted-foreground mb-4">Browse and manage all of your past projects.</p>
+                        <Link href="/projects">
+                            <Button variant="secondary">View All Projects</Button>
                         </Link>
                     </CardContent>
                 </Card>
