@@ -6,7 +6,7 @@ import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/sugges
 import { AppStateContext, HistoryItem } from '@/hooks/use-app-state';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFirebase, useMemoFirebase } from '@/firebase';
-import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, collectionGroup, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, collectionGroup, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
 import { generateProjectName } from '@/ai/flows/generate-project-name';
@@ -89,16 +89,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return null;
   });
 
-  const setProjectId = (id: string | null) => {
+  const setProjectId = (id: string | null, path?: string) => {
     _setProjectId(id);
     if (typeof window !== 'undefined') {
       if (id) {
         sessionStorage.setItem('selectedProjectId', id);
+        if (path) {
+          sessionStorage.setItem(`projectPath_${id}`, path);
+        }
       } else {
         sessionStorage.removeItem('selectedProjectId');
       }
     }
   };
+
 
   const [analysisReport, setAnalysisReport] = useState<string | null>(null);
   const [frontendSuggestions, _setFrontendSuggestions] = useState<SuggestFrontendChangesFromAnalysisOutput | null>(null);
@@ -118,6 +122,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
   
   const clearState = useCallback((forceNav = false) => {
+    const currentProjectId = projectId;
+    if (typeof window !== 'undefined' && currentProjectId) {
+      sessionStorage.removeItem(`projectPath_${currentProjectId}`);
+    }
     setProjectId(null);
     setAnalysisReport(null);
     _setFrontendSuggestions(null);
@@ -133,7 +141,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (forceNav) {
         router.push('/');
     }
-  }, [router]);
+  }, [router, projectId]);
+
+  const setStateFromData = (projectData: ArchitectProject) => {
+    setProjectName(projectData.name || '');
+    setProjectType(projectData.projectType || null);
+    setAnalysisReport(projectData.analysisReport || null);
+    _setFrontendSuggestions(projectData.frontendSuggestions || null);
+    _setBackendSuggestions(projectData.backendSuggestions || null);
+    setUploadedFiles(projectData.uploadedFiles || []);
+    setChatHistory(projectData.chatHistory || []);
+    setProjectOwnerId(projectData.userId || null);
+    setCollaboratorDetails(projectData.collaboratorDetails || []);
+    const historyWithDates = (projectData.history || []).map(h => ({
+        ...h,
+        timestamp: (h.timestamp as any)?.toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)
+    }));
+    setHistory(historyWithDates);
+  };
+
 
   useEffect(() => {
     if (unsubscribeRef.current) {
@@ -155,56 +181,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setDetailedStatus("Loading project details");
 
-    const projectsQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
-
     const loadAndSubscribe = async () => {
+        let docRef;
+        const directPath = sessionStorage.getItem(`projectPath_${projectId}`);
+
         try {
-            // Initial fetch to stabilize the state quickly
-            const initialSnapshot = await getDocs(projectsQuery);
-            if (initialSnapshot.empty) {
-                console.warn(`Project with id ${projectId} not found.`);
-                clearState(true);
-                return;
+            if (directPath) {
+                // If we have a direct path, use it. This is much faster for new documents.
+                docRef = doc(firestore, directPath);
+                const docSnap = await getDoc(docRef);
+                if (!docSnap.exists()) {
+                     console.warn(`Project with direct path ${directPath} not found.`);
+                     clearState(true);
+                     return;
+                }
+            } else {
+                // Fallback to collectionGroup query for existing projects on app load.
+                const projectsQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
+                const initialSnapshot = await getDocs(projectsQuery);
+                if (initialSnapshot.empty) {
+                    console.warn(`Project with id ${projectId} not found via query.`);
+                    clearState(true);
+                    return;
+                }
+                docRef = initialSnapshot.docs[0].ref;
             }
 
-            const projectDoc = initialSnapshot.docs[0];
-            const projectData = projectDoc.data() as ArchitectProject;
-            
-            // Set initial state from the fetched data
-            setProjectName(projectData.name || '');
-            setProjectType(projectData.projectType || null);
-            setAnalysisReport(projectData.analysisReport || null);
-            _setFrontendSuggestions(projectData.frontendSuggestions || null);
-            _setBackendSuggestions(projectData.backendSuggestions || null);
-            setUploadedFiles(projectData.uploadedFiles || []);
-            setChatHistory(projectData.chatHistory || []);
-            setProjectOwnerId(projectData.userId || null);
-            setCollaboratorDetails(projectData.collaboratorDetails || []);
-            const historyWithDates = (projectData.history || []).map(h => ({
-                ...h,
-                timestamp: (h.timestamp as any)?.toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)
-            }));
-            setHistory(historyWithDates);
-            setDetailedStatus(null); // Initial load complete
-
-            // Now, attach the real-time listener for subsequent updates
-            unsubscribeRef.current = onSnapshot(projectDoc.ref, (doc) => {
+            // Now that we have a valid docRef, attach the real-time listener.
+            unsubscribeRef.current = onSnapshot(docRef, (doc) => {
                 if (doc.exists()) {
                     const updatedData = doc.data() as ArchitectProject;
-                    setProjectName(updatedData.name || '');
-                    setProjectType(updatedData.projectType || null);
-                    setAnalysisReport(updatedData.analysisReport || null);
-                    _setFrontendSuggestions(updatedData.frontendSuggestions || null);
-                    _setBackendSuggestions(updatedData.backendSuggestions || null);
-                    setUploadedFiles(updatedData.uploadedFiles || []);
-                    setChatHistory(updatedData.chatHistory || []);
-                    setProjectOwnerId(updatedData.userId || null);
-                    setCollaboratorDetails(updatedData.collaboratorDetails || []);
-                    const updatedHistoryWithDates = (updatedData.history || []).map(h => ({
-                      ...h,
-                      timestamp: (h.timestamp as any)?.toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)
-                    }));
-                    setHistory(updatedHistoryWithDates);
+                    setStateFromData(updatedData);
+                    setDetailedStatus(null); // Load complete
                 } else {
                     console.warn(`Project with id ${projectId} was deleted.`);
                     clearState(true);
@@ -215,7 +223,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             });
 
         } catch (error) {
-            console.error("Error initially loading project:", error);
+            console.error("Error loading project:", error);
             clearState(true);
         }
     };
@@ -282,7 +290,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     await setDoc(projectRef, initialProject);
-    setProjectId(newProjectId);
+    setProjectId(newProjectId, projectRef.path);
 
     (async () => {
       try {
@@ -331,11 +339,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         chatHistory: [initialMessage]
     };
 
-    // AWAIT the setDoc to ensure the document exists before we try to read it.
     await setDoc(projectRef, initialChatProject);
     
-    // Now that the document is created, we can safely set the ID and let the useEffect load it.
-    setProjectId(newProjectId);
+    setProjectId(newProjectId, projectRef.path);
 
     return newProjectId;
   }, [user, firestore]);
@@ -410,3 +416,5 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
+
+    
