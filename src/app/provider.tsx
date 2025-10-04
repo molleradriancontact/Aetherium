@@ -332,10 +332,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         chatHistory: [initialMessage]
     };
 
+    // AWAIT the setDoc to ensure the document exists before we try to read it.
     await setDoc(projectRef, initialChatProject);
-    setProjectId(newProjectId);
     
+    // Now that the document is created, we can safely set the ID and let the useEffect load it.
+    setProjectId(newProjectId);
     setDetailedStatus(null);
+
     return newProjectId;
   }, [user, firestore, clearState]);
 
