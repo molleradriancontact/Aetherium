@@ -1,9 +1,8 @@
-
 'use client';
 
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFirebase } from "@/firebase";
+import { useFirebase, useMemoFirebase } from "@/firebase";
 import { ArchitectProject } from "@/app/provider";
 import { useAppState } from "@/hooks/use-app-state";
 import { LayoutGrid, Loader2, Trash2, Users } from "lucide-react";
@@ -35,13 +34,22 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [isDeleting, startDeleting] = useTransition();
 
-  useEffect(() => {
-    if (!user || !firestore) return;
-
+  const projectsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
     const projectsRef = collection(firestore, 'users', user.uid, 'projects');
-    const q = query(projectsRef, orderBy("createdAt", "desc"));
+    return query(projectsRef, orderBy("createdAt", "desc"));
+  }, [user, firestore]);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+  useEffect(() => {
+    if (!projectsQuery) {
+      setProjects([]);
+      setIsLoading(false);
+      return;
+    };
+    
+    setIsLoading(true);
+
+    const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
       const userProjects = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -56,10 +64,15 @@ export default function ProjectsPage() {
     }, (error) => {
       console.error("Error fetching projects:", error);
       setIsLoading(false);
+      toast({
+        title: "Error Fetching Projects",
+        description: error.message,
+        variant: "destructive"
+      });
     });
 
     return () => unsubscribe();
-  }, [user, firestore]);
+  }, [projectsQuery, toast]);
   
   const handleDelete = (projectId: string) => {
     if (!user) return;
