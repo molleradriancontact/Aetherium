@@ -15,3 +15,5 @@ import './flows/chat.ts';
 import './flows/project-chat.ts';
 import './flows/synthesize-debates.ts';
 import './flows/generate-audio-overview.ts';
+import './flows/generate-image.ts';
+import './flows/generate-video.ts';

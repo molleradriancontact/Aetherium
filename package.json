@@ -48,6 +48,7 @@
     "genkit": "latest",
     "lucide-react": "^0.475.0",
     "next": "latest",
+    "node-fetch": "^3.3.2",
     "patch-package": "^8.0.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -62,6 +63,7 @@
   },
   "devDependencies": {
     "@types/node": "latest",
+    "@types/node-fetch": "^2.6.11",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/wav": "^1.0.4",

@@ -29,6 +29,7 @@ import {
   Users,
   BrainCircuit,
   Search,
+  Film,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
@@ -47,6 +48,7 @@ const navItems = [
   { href: '/collaboration', label: 'Collaboration', icon: Users },
   { href: '/synthesis', label: 'Synthesis', icon: BrainCircuit },
   { href: '/research', label: 'Deep Research', icon: Search },
+  { href: '/generative-media', label: 'Generative Media', icon: Film },
   { href: '/history', label: 'History', icon: GitBranch },
   { href: '/account', label: 'Account', icon: User },
 ];
