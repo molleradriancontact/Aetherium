@@ -44,13 +44,15 @@ export default function SignUpPage() {
     }
   }, [user, isUserLoading, router]);
 
-  const handleUserCreation = async (user: User | null, defaultUsername?: string, photoURL?: string | null) => {
-    if (!user || !firestore) return;
+  const handleUserCreation = async (user: User, defaultUsername?: string, photoURL?: string | null) => {
+    if (!firestore) return;
     
     try {
         const finalUsername = username || defaultUsername || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
 
-        await updateProfile(user, { displayName: finalUsername, photoURL: photoURL || user.photoURL });
+        if (user.displayName !== finalUsername || user.photoURL !== (photoURL || user.photoURL)) {
+          await updateProfile(user, { displayName: finalUsername, photoURL: photoURL || user.photoURL });
+        }
 
         const userRef = doc(firestore, 'users', user.uid);
         const userData = {
@@ -62,8 +64,6 @@ export default function SignUpPage() {
         };
         
         setDocumentNonBlocking(userRef, userData, { merge: true });
-
-        // onAuthStateChanged will handle the redirect now
         
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -103,6 +103,7 @@ export default function SignUpPage() {
     setIsGoogleLoading(true);
     try {
       const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      // For Google Sign-in, we use the display name from Google as the default username.
       await handleUserCreation(result.user, result.user.displayName || undefined, result.user.photoURL);
     } catch (error: any) {
        toast({

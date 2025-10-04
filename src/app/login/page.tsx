@@ -4,14 +4,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useFirebase, initiateEmailSignIn, initiateGoogleSignIn } from '@/firebase';
+import { useFirebase, initiateEmailSignIn } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { GoogleAuthProvider, linkWithCredential, AuthError, getAdditionalUserInfo, UserCredential, OAuthCredential } from 'firebase/auth';
+import { GoogleAuthProvider, linkWithCredential, AuthError, signInWithPopup, signInWithEmailAndPassword, OAuthCredential } from 'firebase/auth';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -48,13 +48,14 @@ export default function LoginPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth) return;
     setIsLoading(true);
 
     if (pendingCred) {
         // If there's a pending credential, it means we need to link accounts.
         // We sign in with email/password first, which returns a userCredential.
         try {
-            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
             // Then, we link the pending Google credential.
             await linkWithCredential(userCredential.user, pendingCred);
             toast({
@@ -71,21 +72,19 @@ export default function LoginPage() {
         }
 
     } else {
-        // Standard email sign-in. We don't await this so the UI doesn't block.
-        // The onAuthStateChanged listener will handle success/failure navigation/toast.
+        // Standard email sign-in.
         initiateEmailSignIn(auth, email, password);
-        // A full implementation would listen for the result of this and then stop the loading spinner
-        // For this prototype, we'll optimistically assume it works or global error handling catches it.
         // We will manually stop the loader after a short delay to give feedback.
         setTimeout(() => setIsLoading(false), 2000);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    if (!auth) return;
     setIsGoogleLoading(true);
     try {
         // We must await the popup to know if we need to handle account linking.
-        await auth.signInWithPopup(new GoogleAuthProvider());
+        await signInWithPopup(auth, new GoogleAuthProvider());
         // If successful, onAuthStateChanged handles the redirect.
     } catch (error: any) {
       const authError = error as AuthError;
