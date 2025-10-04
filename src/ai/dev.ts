@@ -14,3 +14,4 @@ import './flows/hello.ts';
 import './flows/chat.ts';
 import './flows/project-chat.ts';
 import './flows/synthesize-debates.ts';
+import './flows/generate-audio-overview.ts';
