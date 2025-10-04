@@ -48,7 +48,7 @@ export default function CollaborationPage() {
   });
 
   const handleAddCollaborator = (data: CollaboratorFormValues) => {
-    if (!isOwner || !projectId) return;
+    if (!isOwner || !projectId || !user) return;
     startTransition(async () => {
       try {
         await addCollaborator(user.uid, projectId, data.email);
@@ -68,11 +68,11 @@ export default function CollaborationPage() {
     });
   }
 
-  const handleRemoveCollaborator = (collaboratorId: string, collaborator: any) => {
-    if (!isOwner || !projectId) return;
+  const handleRemoveCollaborator = (collaborator: any) => {
+    if (!isOwner || !projectId || !user) return;
     startTransition(async () => {
       try {
-        await removeCollaborator(user.uid, projectId, collaboratorId, collaborator);
+        await removeCollaborator(user.uid, projectId, collaborator.id, collaborator);
         toast({
           title: "Collaborator Removed",
           description: "The user has been removed from the project.",
@@ -140,7 +140,7 @@ export default function CollaborationPage() {
                           <p className="text-sm text-muted-foreground">{c.email}</p>
                         </div>
                       </div>
-                      {isOwner && (
+                      {isOwner && c.id !== user?.uid && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" disabled={isPending}>
@@ -156,7 +156,7 @@ export default function CollaborationPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleRemoveCollaborator(c.id, c)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              <AlertDialogAction onClick={() => handleRemoveCollaborator(c)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                                 Remove
                               </AlertDialogAction>
                             </AlertDialogFooter>

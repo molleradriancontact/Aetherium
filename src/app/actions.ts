@@ -56,7 +56,7 @@ export async function addCollaborator(ownerId: string, projectId: string, collab
     }
     
     const db = getFirestore(getAdminApp());
-    const auth = getAdminAuth();
+    const auth = getAdminAuth(getAdminApp());
 
     try {
         const userRecord = await auth.getUserByEmail(collaboratorEmail);
