@@ -6,7 +6,7 @@ import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/sugges
 import { AppStateContext, HistoryItem } from '@/hooks/use-app-state';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFirebase } from '@/firebase';
-import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, query, orderBy, limit, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
 import { generateProjectName } from '@/ai/flows/generate-project-name';
@@ -187,15 +187,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addHistory = useCallback(async (message: string) => {
     if (!user || !firestore || !projectId) return;
-    const currentHistory = (history || []).map(h => ({...h, timestamp: h.timestamp}));
-
+    const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
     const newHistoryItem = { id: Date.now(), message, timestamp: new Date() };
 
-    const updatedHistory = [...currentHistory, newHistoryItem];
-    
-    const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
+    // Create a new array for the update.
+    // Use the functional form of setHistory to get the latest state.
+    let updatedHistory: HistoryItem[] = [];
+    setHistory(currentHistory => {
+        updatedHistory = [...currentHistory, newHistoryItem];
+        return updatedHistory;
+    });
+
     await updateDoc(projectRef, { history: updatedHistory });
-  }, [user, firestore, history, projectId]);
+  }, [user, firestore, projectId]);
 
 
   const startAnalysis = useCallback(async (files: UploadedFile[]) => {
@@ -254,6 +258,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user || !firestore) throw new Error("User or Firestore not available.");
     
     setDetailedStatus("Starting new chat");
+    clearState(false);
 
     const projectRef = doc(collection(firestore, 'users', user.uid, 'projects'));
     const newProjectId = projectRef.id;
@@ -271,14 +276,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setProjectId(newProjectId);
     setDetailedStatus(null);
     return newProjectId;
-  }, [user, firestore]);
+  }, [user, firestore, clearState]);
 
   const addChatMessage = useCallback(async (projectId: string, message: Message) => {
     if (!user || !firestore) return;
     const projectRef = doc(firestore, 'users', user.uid, 'projects', projectId);
-    const updatedHistory = [...(chatHistory || []), message];
-    await updateDoc(projectRef, { chatHistory: updatedHistory });
-  }, [user, firestore, chatHistory]);
+    
+    let updatedChatHistory: Message[] = [];
+    setChatHistory(currentHistory => {
+        updatedChatHistory = [...currentHistory, message];
+        return updatedChatHistory;
+    });
+
+    await updateDoc(projectRef, { chatHistory: updatedChatHistory });
+  }, [user, firestore]);
 
   const setFrontendSuggestions = useCallback(async (suggestions: SuggestFrontendChangesFromAnalysisOutput | null) => {
       _setFrontendSuggestions(suggestions);

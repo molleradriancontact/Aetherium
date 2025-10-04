@@ -1,4 +1,3 @@
-
 'use client';
 
 import { PageHeader } from "@/components/page-header";
@@ -16,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import React from "react";
 import { updateProfile } from "firebase/auth";
-import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 const profileSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(20, "Username must be at most 20 characters"),
@@ -60,11 +59,11 @@ export default function AccountPage() {
     const onSubmit = async (data: ProfileFormValues) => {
         if (!userDocRef || !auth.currentUser) return;
         
-        // Use non-blocking update for Firestore
-        updateDocumentNonBlocking(userDocRef, { username: data.username });
+        // Use non-blocking update for Firestore. Errors are handled globally.
+        setDocumentNonBlocking(userDocRef, { username: data.username }, { merge: true });
 
+        // Firebase Auth profile update can be awaited for immediate UI feedback.
         try {
-            // Firebase Auth profile update can remain awaited as it's a critical UI feedback step
             await updateProfile(auth.currentUser, { displayName: data.username });
             
             toast({
