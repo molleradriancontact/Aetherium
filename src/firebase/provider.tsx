@@ -67,6 +67,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     isUserLoading: true, // Start loading until first auth event
     userError: null,
   });
+  const [isSigningInAnonymously, setIsSigningInAnonymously] = useState(false);
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
@@ -75,28 +76,37 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       return;
     }
 
-    setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
+    // Don't reset state if we are in the middle of an anonymous sign-in
+    if (!isSigningInAnonymously) {
+      setUserAuthState({ user: null, isUserLoading: true, userError: null });
+    }
 
     const unsubscribe = onAuthStateChanged(
       auth,
       (firebaseUser) => { // Auth state determined
+        setIsSigningInAnonymously(false); // Reset the flag once we have a user or tried
         if (!firebaseUser) {
-          // If no user, sign in anonymously.
-          signInAnonymously(auth).catch((error) => {
-            console.error("Anonymous sign-in failed:", error);
-            setUserAuthState({ user: null, isUserLoading: false, userError: error });
-          });
+          // If no user and we are not already trying, sign in anonymously.
+          if (!isSigningInAnonymously) {
+            setIsSigningInAnonymously(true);
+            signInAnonymously(auth).catch((error) => {
+              console.error("Anonymous sign-in failed:", error);
+              setIsSigningInAnonymously(false);
+              setUserAuthState({ user: null, isUserLoading: false, userError: error });
+            });
+          }
         } else {
             setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
         }
       },
       (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
+        setIsSigningInAnonymously(false);
         setUserAuthState({ user: null, isUserLoading: false, userError: error });
       }
     );
     return () => unsubscribe(); // Cleanup
-  }, [auth]); // Depends on the auth instance
+  }, [auth, isSigningInAnonymously]); // Depends on the auth instance and our lock state
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {
