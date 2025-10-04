@@ -9,6 +9,7 @@ import {
   GoogleAuthProvider,
   // Assume getAuth and app are initialized elsewhere
 } from 'firebase/auth';
+import { toast } from '@/hooks/use-toast';
 
 /** Initiate anonymous sign-in (non-blocking). */
 export function initiateAnonymousSignIn(authInstance: Auth): void {
@@ -27,7 +28,15 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
 /** Initiate email/password sign-in (non-blocking). */
 export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): void {
   // CRITICAL: Call signInWithEmailAndPassword directly. Do NOT use 'await signInWithEmailAndPassword(...)'.
-  signInWithEmailAndPassword(authInstance, email, password);
+  signInWithEmailAndPassword(authInstance, email, password)
+    .catch((error) => {
+        // This handles cases like wrong password, user not found, etc.
+        toast({
+            variant: "destructive",
+            title: "Sign In Failed",
+            description: error.message || "An unknown authentication error occurred.",
+        });
+    });
   // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
 }
 
