@@ -1,6 +1,6 @@
 'use client';
 
-import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
+import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect, useRef } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
@@ -67,7 +67,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     userError: null,
   });
 
-  // Effect to subscribe to Firebase auth state changes
+  const isSigningOut = useRef(false);
+
   useEffect(() => {
     if (!auth) {
       setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
@@ -76,25 +77,34 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // User is signed in.
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+        isSigningOut.current = false;
       } else {
-        // No user is signed in. Attempt to sign in anonymously.
-        signInAnonymously(auth).catch((error) => {
-          // This is a critical failure if anonymous sign-in fails.
-          console.error("FirebaseProvider: Anonymous sign-in failed.", error);
-          setUserAuthState({ user: null, isUserLoading: false, userError: error });
-        });
+        if (isSigningOut.current) {
+          setUserAuthState({ user: null, isUserLoading: false, userError: null });
+        } else {
+          signInAnonymously(auth).catch((error) => {
+            console.error("FirebaseProvider: Anonymous sign-in failed.", error);
+            setUserAuthState({ user: null, isUserLoading: false, userError: error });
+          });
+        }
       }
     }, (error) => {
-      // This handles errors from the listener itself.
       console.error("FirebaseProvider: onAuthStateChanged error:", error);
       setUserAuthState({ user: null, isUserLoading: false, userError: error });
     });
+
+    const originalSignOut = auth.signOut.bind(auth);
+    auth.signOut = async () => {
+        isSigningOut.current = true;
+        await originalSignOut();
+    };
   
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
-  }, [auth]); // Only depends on the auth instance
+    return () => {
+        unsubscribe();
+        auth.signOut = originalSignOut;
+    };
+  }, [auth]);
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {

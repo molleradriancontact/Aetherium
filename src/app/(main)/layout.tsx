@@ -60,11 +60,11 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     }
   }, [isUserLoading, user, router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (auth) {
-      auth.signOut();
+      await auth.signOut();
     }
-    clearState();
+    clearState(true);
   };
 
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
