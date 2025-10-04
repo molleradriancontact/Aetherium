@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -27,10 +28,11 @@ import {
   LayoutGrid,
   Users,
   BrainCircuit,
+  Search,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2 } from 'lucide-react';
 
@@ -44,6 +46,7 @@ const navItems = [
   { href: '/prototype', label: 'Prototype', icon: FlaskConical },
   { href: '/collaboration', label: 'Collaboration', icon: Users },
   { href: '/synthesis', label: 'Synthesis', icon: BrainCircuit },
+  { href: '/research', label: 'Deep Research', icon: Search },
   { href: '/history', label: 'History', icon: GitBranch },
   { href: '/account', label: 'Account', icon: User },
 ];
@@ -53,18 +56,22 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const { clearState } = useAppState();
   const { auth, user, isUserLoading } = useFirebase();
   const router = useRouter();
+  const isSigningOut = useRef(false);
+
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
+    if (!isUserLoading && !user && !isSigningOut.current) {
       router.push('/login');
     }
   }, [isUserLoading, user, router]);
 
   const handleLogout = async () => {
     if (auth) {
-      await auth.signOut();
+        isSigningOut.current = true;
+        await auth.signOut();
+        clearState(true);
+        router.push('/login');
     }
-    clearState(true);
   };
 
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
