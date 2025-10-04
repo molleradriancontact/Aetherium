@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -72,17 +71,20 @@ export function ChatInterface() {
 
     let currentProjectId = projectId;
     
-    if (!currentProjectId || !isChatProject) {
-        currentProjectId = await startChat(userMessage);
-    } else {
-        await addChatMessage(currentProjectId, userMessage);
-    }
-    
-    const currentHistory = isChatProject ? [...chatHistory, userMessage] : [userMessage];
-    const historyForAI = currentHistory.slice(0, -1);
-    const promptForAI = currentHistory.at(-1)?.content ?? '';
-
     try {
+      // If this is the first message, create the chat project.
+      if (!currentProjectId || !isChatProject) {
+        currentProjectId = await startChat(userMessage);
+      } else {
+        // Otherwise, just add the new message to the existing project.
+        await addChatMessage(currentProjectId, userMessage);
+      }
+
+      // Now, call the AI with the updated history.
+      const updatedHistory = [...(chatHistory || []), userMessage];
+      const historyForAI = updatedHistory.slice(0, -1);
+      const promptForAI = updatedHistory.at(-1)?.content ?? '';
+
       const result = await chat(historyForAI, promptForAI);
       const aiResponse: Message = { role: 'model', content: result.content };
       

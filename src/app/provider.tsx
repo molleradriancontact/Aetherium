@@ -282,6 +282,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const startChat = useCallback(async (initialMessage: Message, isPublic: boolean = false) => {
     if (!user || !firestore) throw new Error("User or Firestore not available.");
     
+    clearState(false);
     setDetailedStatus("Starting new chat");
     
     const collectionPath = isPublic ? 'projects' : `users/${user.uid}/projects`;
@@ -299,10 +300,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     await setDoc(projectRef, initialChatProject);
+    
+    // This is the crucial change: set the project ID *after* the document is created.
+    // The useEffect hook will then pick it up and load the state correctly.
     setProjectId(newProjectId);
+    
     setDetailedStatus(null);
     return newProjectId;
-  }, [user, firestore]);
+  }, [user, firestore, clearState]);
 
   const addChatMessage = useCallback(async (projectId: string, message: Message) => {
     if (!firestore) return;
