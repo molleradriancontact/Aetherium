@@ -38,12 +38,15 @@ export default function SignUpPage() {
   const { toast } = useToast();
 
   const handleUserCreation = async (user: User | null, defaultUsername?: string, photoURL?: string | null) => {
-    if (user && firestore) {
+    if (!user || !firestore) return;
+    
+    try {
         const finalUsername = username || defaultUsername || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
 
-        // Update Auth profile first
+        // Step 1: Update Auth profile first. Await this as it's quick and important for immediate UI consistency.
         await updateProfile(user, { displayName: finalUsername, photoURL: photoURL || user.photoURL });
 
+        // Step 2: Create the user document in Firestore using a non-blocking write.
         const userRef = doc(firestore, 'users', user.uid);
         const userData = {
           id: user.uid,
@@ -52,10 +55,21 @@ export default function SignUpPage() {
           photoURL: photoURL || user.photoURL,
           registrationDate: new Date().toISOString(),
         };
-        // Use non-blocking write with error handling and merge option
+        
+        // This will write to Firestore without blocking, and errors will be handled globally.
         setDocumentNonBlocking(userRef, userData, { merge: true });
-      }
-      router.push('/');
+
+        // Step 3: Navigate the user to the home page.
+        router.push('/');
+        
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        toast({
+            title: 'Profile Creation Failed',
+            description: `There was an issue setting up your profile: ${errorMessage}`,
+            variant: 'destructive',
+        });
+    }
   }
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -198,5 +212,3 @@ export default function SignUpPage() {
     </div>
   );
 }
-
-    

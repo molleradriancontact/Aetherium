@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, linkWithCredential, AuthError, getAdditionalUserInfo, UserCredential } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, linkWithCredential, AuthError, getAdditionalUserInfo, UserCredential, OAuthProvider } from 'firebase/auth';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -37,7 +37,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   
-  const [pendingGoogleCred, setPendingGoogleCred] = useState<UserCredential | null>(null);
+  const [pendingCred, setPendingCred] = useState<OAuthProvider | null>(null);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,15 +45,12 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      if (pendingGoogleCred && userCredential.user) {
-        const googleCred = GoogleAuthProvider.credentialFromResult(pendingGoogleCred);
-        if (googleCred) {
-          await linkWithCredential(userCredential.user, googleCred);
-          toast({
+      if (pendingCred && userCredential.user) {
+        await linkWithCredential(userCredential.user, pendingCred as any);
+        toast({
             title: "Accounts Linked",
             description: "Your Google account is now linked. You can sign in with Google from now on."
-          });
-        }
+        });
       }
       router.push('/');
 
@@ -66,7 +63,7 @@ export default function LoginPage() {
       });
     } finally {
       setIsLoading(false);
-      setPendingGoogleCred(null);
+      setPendingCred(null);
     }
   };
 
@@ -82,16 +79,12 @@ export default function LoginPage() {
       router.push('/');
     } catch (error: any) {
       const authError = error as AuthError;
-      if (authError.code === 'auth/account-exists-with-different-credential' && authError.customData) {
+      if (authError.code === 'auth/account-exists-with-different-credential') {
         const pendingCred = GoogleAuthProvider.credentialFromError(authError);
         const email = authError.customData.email;
         if (email && pendingCred) {
           setEmail(email as string);
-          setPendingGoogleCred({
-            user: { email: email } as any, // Mock user object for credential
-            credential: pendingCred,
-            providerId: GoogleAuthProvider.PROVIDER_ID,
-          } as UserCredential);
+          setPendingCred(pendingCred as any);
         } else {
              toast({ variant: 'destructive', title: 'Google Sign-in failed.', description: 'Could not retrieve email for account linking.' });
         }
@@ -115,12 +108,12 @@ export default function LoginPage() {
           <CardDescription>Enter your email below to login to your account.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-            {pendingGoogleCred && (
+            {pendingCred && (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Link Your Google Account</AlertTitle>
                 <AlertDescription>
-                  This email is already registered. Sign in with your password to link your Google account.
+                  An account with this email already exists. Sign in with your password to link your Google account.
                 </AlertDescription>
               </Alert>
             )}
@@ -171,7 +164,7 @@ export default function LoginPage() {
           <CardFooter className="flex flex-col">
             <Button type="submit" className="w-full" disabled={isGoogleLoading || isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {pendingGoogleCred ? "Sign In & Link" : "Sign In"}
+              {pendingCred ? "Sign In & Link" : "Sign In"}
             </Button>
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{' '}
@@ -185,5 +178,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
