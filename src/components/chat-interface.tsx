@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useTransition } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +15,7 @@ import { useAppState } from '@/hooks/use-app-state';
 
 export function ChatInterface() {
   const [input, setInput] = useState('');
-  const [isResponding, setIsResponding] = useState(false);
+  const [isResponding, startResponding] = useTransition();
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
 
@@ -42,23 +43,20 @@ export function ChatInterface() {
       return;
     }
     
-    setIsResponding(true);
-    
-    try {
-      const dataUrl = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
-      await startAnalysis([{ path: 'Pasted Text.txt', content: dataUrl }]);
+    startResponding(async () => {
+      try {
+        const dataUrl = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+        const newProjectId = await startAnalysis([{ path: 'Pasted Text.txt', content: dataUrl }]);
 
-      toast({ title: 'Analysis Started', description: 'The document is being analyzed. You can see progress on the main page.' });
-      if (projectId) {
-          await addChatMessage(projectId, { role: 'model', content: "I've started analyzing the document. You'll be redirected once it's complete."});
+        toast({ title: 'Analysis Started', description: 'The document is being analyzed. You can see progress on the main page.' });
+        if (projectId) { // The current chat project ID
+            await addChatMessage(projectId, { role: 'model', content: `I've started analyzing the document under a new project. You'll be redirected once it's complete.`});
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
       }
-      
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      toast({ title: 'Operation Failed', description: errorMessage, variant: 'destructive' });
-    } finally {
-      setIsResponding(false);
-    }
+    });
   };
 
   const handleSend = async () => {
@@ -67,33 +65,46 @@ export function ChatInterface() {
     const userMessage: Message = { role: 'user', content: input };
     const currentInput = input;
     setInput('');
-    setIsResponding(true);
+    
 
     let currentProjectId = projectId;
     
     try {
-      // If this is the first message, create the chat project.
       if (!currentProjectId || !isChatProject) {
-        currentProjectId = await startChat(userMessage);
+        startResponding(async () => {
+          const newProjectId = await startChat(userMessage);
+          const historyForAI = [];
+          const promptForAI = userMessage.content;
+          
+          const result = await chat(historyForAI, promptForAI);
+          const aiResponse: Message = { role: 'model', content: result.content };
+          
+          if (result.functionCall?.name === 'saveDocument') {
+            await addChatMessage(newProjectId, aiResponse);
+            const textToSave = result.functionCall.args.content;
+            await handleSaveDocument(textToSave);
+          } else {
+            await addChatMessage(newProjectId, aiResponse);
+          }
+        });
       } else {
-        // Otherwise, just add the new message to the existing project.
         await addChatMessage(currentProjectId, userMessage);
-      }
+        startResponding(async () => {
+          const updatedHistory = [...(chatHistory || [])];
+          const historyForAI = updatedHistory.slice(0, -1);
+          const promptForAI = updatedHistory.at(-1)?.content ?? '';
 
-      // Now, call the AI with the updated history.
-      const updatedHistory = [...(chatHistory || []), userMessage];
-      const historyForAI = updatedHistory.slice(0, -1);
-      const promptForAI = updatedHistory.at(-1)?.content ?? '';
-
-      const result = await chat(historyForAI, promptForAI);
-      const aiResponse: Message = { role: 'model', content: result.content };
-      
-      if (result.functionCall?.name === 'saveDocument') {
-        await addChatMessage(currentProjectId, aiResponse);
-        const textToSave = result.functionCall.args.content;
-        await handleSaveDocument(textToSave);
-      } else {
-        await addChatMessage(currentProjectId, aiResponse);
+          const result = await chat(historyForAI, promptForAI);
+          const aiResponse: Message = { role: 'model', content: result.content };
+          
+          if (result.functionCall?.name === 'saveDocument') {
+            await addChatMessage(currentProjectId!, aiResponse);
+            const textToSave = result.functionCall.args.content;
+            await handleSaveDocument(textToSave);
+          } else {
+            await addChatMessage(currentProjectId!, aiResponse);
+          }
+        });
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -102,8 +113,6 @@ export function ChatInterface() {
       if (currentProjectId) {
           await addChatMessage(currentProjectId, errorResponse);
       }
-    } finally {
-      setIsResponding(false);
     }
   };
 

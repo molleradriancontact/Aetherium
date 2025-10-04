@@ -25,7 +25,7 @@ export interface CollaboratorDetails {
 }
 
 export interface ArchitectProject {
-    id: string;
+    id:string;
     userId: string;
     name: string;
     createdAt: any;
@@ -34,6 +34,7 @@ export interface ArchitectProject {
     analysisReport?: string | null;
     frontendSuggestions?: SuggestFrontendChangesFromAnalysisOutput | null;
     backendSuggestions?: SuggestBackendChangesFromAnalysisOutput | null;
+
     history?: HistoryItem[];
     uploadedFiles?: UploadedFile[];
     chatHistory?: Message[];
@@ -136,65 +137,97 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-      unsubscribeRef.current = null;
-    }
-  
-    if (isUserLoading || !firestore) {
-      if (!isUserLoading) {
-        setDetailedStatus(null);
-        if (projectId) clearState(false);
-      }
-      return;
-    }
-  
-    if (!projectId) {
-      setDetailedStatus(null);
-      return;
-    }
-  
-    setDetailedStatus("Loading project details");
-  
-    const projectsQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
-  
-    unsubscribeRef.current = onSnapshot(projectsQuery, (snapshot) => {
-      if (!snapshot.empty) {
-        const projectDoc = snapshot.docs[0];
-        const projectData = projectDoc.data() as ArchitectProject;
-        
-        setProjectName(projectData.name);
-        setProjectType(projectData.projectType);
-        setAnalysisReport(projectData.analysisReport || null);
-        _setFrontendSuggestions(projectData.frontendSuggestions || null);
-        _setBackendSuggestions(projectData.backendSuggestions || null);
-        setUploadedFiles(projectData.uploadedFiles || []);
-        setChatHistory(projectData.chatHistory || []);
-        setProjectOwnerId(projectData.userId);
-        setCollaboratorDetails(projectData.collaboratorDetails || []);
-  
-        const historyWithDates = (projectData.history || []).map(h => ({
-          ...h,
-          timestamp: (h.timestamp as any)?.toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)
-        }));
-        setHistory(historyWithDates);
-  
-      } else {
-        console.warn(`Project with id ${projectId} not found.`);
-        clearState(true);
-      }
-      setDetailedStatus(null);
-    }, (error: any) => {
-      console.error("Error loading project:", error);
-      setDetailedStatus(null);
-      clearState(true);
-    });
-  
-    return () => {
-      if (unsubscribeRef.current) {
         unsubscribeRef.current();
-      }
+        unsubscribeRef.current = null;
+    }
+
+    if (isUserLoading || !firestore) {
+        if (!isUserLoading && projectId) {
+            clearState(false);
+        }
+        return;
+    }
+
+    if (!projectId) {
+        setDetailedStatus(null);
+        return;
+    }
+
+    setDetailedStatus("Loading project details");
+
+    const projectsQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
+
+    const loadAndSubscribe = async () => {
+        try {
+            // Initial fetch to stabilize the state quickly
+            const initialSnapshot = await getDocs(projectsQuery);
+            if (initialSnapshot.empty) {
+                console.warn(`Project with id ${projectId} not found.`);
+                clearState(true);
+                return;
+            }
+
+            const projectDoc = initialSnapshot.docs[0];
+            const projectData = projectDoc.data() as ArchitectProject;
+            
+            // Set initial state from the fetched data
+            setProjectName(projectData.name || '');
+            setProjectType(projectData.projectType || null);
+            setAnalysisReport(projectData.analysisReport || null);
+            _setFrontendSuggestions(projectData.frontendSuggestions || null);
+            _setBackendSuggestions(projectData.backendSuggestions || null);
+            setUploadedFiles(projectData.uploadedFiles || []);
+            setChatHistory(projectData.chatHistory || []);
+            setProjectOwnerId(projectData.userId || null);
+            setCollaboratorDetails(projectData.collaboratorDetails || []);
+            const historyWithDates = (projectData.history || []).map(h => ({
+                ...h,
+                timestamp: (h.timestamp as any)?.toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)
+            }));
+            setHistory(historyWithDates);
+            setDetailedStatus(null); // Initial load complete
+
+            // Now, attach the real-time listener for subsequent updates
+            unsubscribeRef.current = onSnapshot(projectDoc.ref, (doc) => {
+                if (doc.exists()) {
+                    const updatedData = doc.data() as ArchitectProject;
+                    setProjectName(updatedData.name || '');
+                    setProjectType(updatedData.projectType || null);
+                    setAnalysisReport(updatedData.analysisReport || null);
+                    _setFrontendSuggestions(updatedData.frontendSuggestions || null);
+                    _setBackendSuggestions(updatedData.backendSuggestions || null);
+                    setUploadedFiles(updatedData.uploadedFiles || []);
+                    setChatHistory(updatedData.chatHistory || []);
+                    setProjectOwnerId(updatedData.userId || null);
+                    setCollaboratorDetails(updatedData.collaboratorDetails || []);
+                    const updatedHistoryWithDates = (updatedData.history || []).map(h => ({
+                      ...h,
+                      timestamp: (h.timestamp as any)?.toDate ? (h.timestamp as any).toDate() : new Date(h.timestamp)
+                    }));
+                    setHistory(updatedHistoryWithDates);
+                } else {
+                    console.warn(`Project with id ${projectId} was deleted.`);
+                    clearState(true);
+                }
+            }, (error) => {
+                console.error("Error listening to project:", error);
+                clearState(true);
+            });
+
+        } catch (error) {
+            console.error("Error initially loading project:", error);
+            clearState(true);
+        }
     };
-  }, [firestore, projectId, isUserLoading, clearState]);
+
+    loadAndSubscribe();
+
+    return () => {
+        if (unsubscribeRef.current) {
+            unsubscribeRef.current();
+        }
+    };
+}, [firestore, projectId, isUserLoading, clearState]);
 
 
   const addHistory = useCallback(async (message: string) => {
@@ -211,18 +244,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const newHistoryItem = { id: Date.now(), message, timestamp: new Date() };
 
-    let updatedHistory: HistoryItem[] = [];
-    setHistory(currentHistory => {
-        updatedHistory = [...currentHistory, newHistoryItem];
-        return updatedHistory;
-    });
+    // Optimistic update
+    setHistory(currentHistory => [...currentHistory, newHistoryItem]);
 
     try {
-        await updateDoc(projectRef, { history: updatedHistory });
+        await updateDoc(projectRef, { 
+            history: [...history, newHistoryItem]
+        });
     } catch (e) {
         console.error("Failed to update history in Firestore:", e);
+        // Optional: handle rollback on failure
     }
-  }, [user, firestore, projectId]);
+  }, [user, firestore, projectId, history]);
 
 
   const startAnalysis = useCallback(async (files: UploadedFile[], isPublic: boolean = false) => {
@@ -300,9 +333,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     await setDoc(projectRef, initialChatProject);
-    
-    // This is the crucial change: set the project ID *after* the document is created.
-    // The useEffect hook will then pick it up and load the state correctly.
     setProjectId(newProjectId);
     
     setDetailedStatus(null);
@@ -321,14 +351,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     const projectRef = querySnapshot.docs[0].ref;
     
-    let updatedChatHistory: Message[] = [];
-    setChatHistory(currentHistory => {
-        updatedChatHistory = [...currentHistory, message];
-        return updatedChatHistory;
-    });
+    const updatedHistory = [...(chatHistory || []), message];
 
-    await updateDoc(projectRef, { chatHistory: updatedChatHistory });
-  }, [firestore]);
+    // Optimistic update
+    setChatHistory(updatedHistory);
+
+    await updateDoc(projectRef, { chatHistory: updatedHistory });
+  }, [firestore, chatHistory]);
 
   const setFrontendSuggestions = useCallback(async (suggestions: SuggestFrontendChangesFromAnalysisOutput | null) => {
       if (!projectId || !firestore) return;
