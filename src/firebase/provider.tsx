@@ -106,7 +106,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       }
     );
     return () => unsubscribe(); // Cleanup
-  }, [auth, isSigningInAnonymously]); // Depends on the auth instance and our lock state
+  }, [auth]); // Depends on the auth instance only
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {
