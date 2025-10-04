@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { applyCodeChanges } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
+import { Preview } from "./preview";
 
 type GeneratedFile = {
   path: string;
@@ -165,29 +166,32 @@ export function PrototypingInterface({ enabledScopes, header }: PrototypingInter
                             ))}
                         </TabsList>
                     </ScrollArea>
-                    {generatedFiles.map(file => (
+                    {generatedFiles.map(file => {
+                      const isVisual = file.path.endsWith('.tsx') || file.path.endsWith('.jsx');
+                      return (
                         <TabsContent key={file.path} value={file.path}>
-                            <Tabs defaultValue={file.visualDescription ? "visual" : "code"} className="w-full">
-                                {file.visualDescription && (
+                            <Tabs defaultValue={isVisual ? "visual" : "code"} className="w-full">
+                                {isVisual && (
                                      <TabsList className="grid w-full grid-cols-2">
                                         <TabsTrigger value="visual">Visual Preview</TabsTrigger>
                                         <TabsTrigger value="code">Code</TabsTrigger>
                                     </TabsList>
                                 )}
-                               {file.visualDescription && (
+                               {isVisual && (
                                 <TabsContent value="visual">
                                      <Card className="mt-4 bg-muted/50">
-                                        <CardHeader>
-                                            <CardTitle className="text-lg">Visual Preview Description</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-muted-foreground whitespace-pre-wrap">{file.visualDescription}</p>
+                                        <CardContent className="p-2">
+                                          <iframe 
+                                            src={`/preview?code=${encodeURIComponent(file.content)}`}
+                                            className="w-full h-[600px] border-0 rounded-md bg-background"
+                                            sandbox="allow-scripts allow-same-origin"
+                                          />
                                         </CardContent>
                                     </Card>
                                 </TabsContent>
                                )}
                                 <TabsContent value="code">
-                                    <Card className={file.visualDescription ? "mt-4" : ""}>
+                                    <Card className={isVisual ? "mt-4" : ""}>
                                         <CardHeader>
                                             <CardTitle className="text-base font-mono">{file.path}</CardTitle>
                                         </CardHeader>
@@ -202,7 +206,7 @@ export function PrototypingInterface({ enabledScopes, header }: PrototypingInter
                                 </TabsContent>
                             </Tabs>
                         </TabsContent>
-                    ))}
+                    )})}
                 </Tabs>
             </CardContent>
          </Card>
