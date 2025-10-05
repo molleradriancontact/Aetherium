@@ -4,7 +4,7 @@
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase } from "@/firebase";
-import { useAppState, ArchitectProject } from "@/app/provider";
+import { useAppState } from "@/app/provider";
 import { Loader2, Users, Trash2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -36,7 +36,7 @@ const collaboratorSchema = z.object({
 type CollaboratorFormValues = z.infer<typeof collaboratorSchema>;
 
 export default function CollaborationPage() {
-  const { user, firestore } = useFirebase();
+  const { user, auth } = useFirebase();
   const { projectId, isHydrated, projectOwnerId, collaboratorDetails } = useAppState();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -52,16 +52,19 @@ export default function CollaborationPage() {
     if (!isOwner || !projectId) return;
     startTransition(async () => {
       try {
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) throw new Error("Authentication token not found.");
+        
         await addCollaborator(projectId, data.email);
         toast({
-          title: "Collaborator Added",
+          title: "Invitation Sent",
           description: `An invitation has been sent to ${data.email}.`,
         });
         reset();
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         toast({
-          title: "Failed to Add Collaborator",
+          title: "Failed to Send Invitation",
           description: errorMessage,
           variant: "destructive"
         });
@@ -178,8 +181,8 @@ export default function CollaborationPage() {
           <div>
             <Card>
               <CardHeader>
-                <CardTitle>Add Collaborator</CardTitle>
-                <CardDescription>Enter the email address of the user you want to add.</CardDescription>
+                <CardTitle>Invite Collaborator</CardTitle>
+                <CardDescription>Enter the email address of the user you want to invite.</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit(handleAddCollaborator)} className="space-y-4">
@@ -193,7 +196,7 @@ export default function CollaborationPage() {
                             <Input id="email" type="email" placeholder="collaborator@example.com" {...field} disabled={isSubmitting || isPending} className="pr-12"/>
                             <Button type="submit" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" disabled={isSubmitting || isPending || !field.value}>
                               {isSubmitting || isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                              <span className="sr-only">Add Collaborator</span>
+                              <span className="sr-only">Invite Collaborator</span>
                             </Button>
                           </div>
                         )}

@@ -131,6 +131,22 @@
         "projectType"
       ]
     },
+    "Invitation": {
+      "title": "Invitation",
+      "type": "object",
+      "description": "Represents an invitation for a user to collaborate on a project.",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "projectName": { "type": "string" },
+        "invitedByUserId": { "type": "string" },
+        "invitedByUsername": { "type": "string" },
+        "invitedUserEmail": { "type": "string", "format": "email" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "projectId", "projectName", "invitedByUserId", "invitedByUsername", "invitedUserEmail", "status", "createdAt"]
+    },
     "HistoryItem": {
       "title": "HistoryItem",
       "type": "object",
@@ -234,6 +250,12 @@
         "$ref": "#/entities/ArchitectProject"
       },
       "description": "Stores the private analysis and chat projects for each user."
+    },
+    "/users/{userId}/invitations/{invitationId}": {
+      "schema": {
+        "$ref": "#/entities/Invitation"
+      },
+      "description": "Stores pending project invitations for a user."
     }
   }
 }

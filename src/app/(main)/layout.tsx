@@ -32,6 +32,7 @@ import {
   Film,
   Clapperboard,
   BookOpen,
+  Mail,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
@@ -61,6 +62,7 @@ const navItems = [
   { href: '/backend', label: 'Backend', icon: Database },
   { href: '/prototype', label: 'Prototype', icon: FlaskConical },
   { href: '/collaboration', label: 'Collaboration', icon: Users },
+  { href: '/invitations', label: 'Invitations', icon: Mail },
   { href: '/synthesis', label: 'Synthesis', icon: BrainCircuit },
   { href: '/research', label: 'Deep Research', icon: Search },
   { href: '/generative-media', label: 'Generative Media', icon: Film },

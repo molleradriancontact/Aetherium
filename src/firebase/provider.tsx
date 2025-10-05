@@ -61,6 +61,35 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     userError: null,
   });
 
+  // Intercept fetch to add the Authorization header
+    useEffect(() => {
+        if (!auth) return;
+
+        const originalFetch = window.fetch;
+
+        window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+                try {
+                    const idToken = await currentUser.getIdToken();
+                    const headers = new Headers(init?.headers);
+                    headers.set('Authorization', `Bearer ${idToken}`);
+                    
+                    const newInit = { ...init, headers };
+                    return originalFetch(input, newInit);
+                } catch (error) {
+                    console.error("Error getting ID token, proceeding without it:", error);
+                    return originalFetch(input, init);
+                }
+            }
+            return originalFetch(input, init);
+        };
+
+        return () => {
+            window.fetch = originalFetch;
+        };
+    }, [auth]);
+
   useEffect(() => {
     if (!auth) {
       setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
