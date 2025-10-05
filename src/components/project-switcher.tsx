@@ -17,13 +17,13 @@ export function ProjectSwitcher() {
   const router = useRouter();
 
   const userProjectsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user) return null; // Wait for user to be loaded
+    if (isUserLoading || !user?.uid) return null;
     return query(
       collectionGroup(firestore, 'projects'),
       where('collaborators', 'array-contains', user.uid),
       orderBy('createdAt', 'desc')
     );
-  }, [user, firestore, isUserLoading]);
+  }, [user?.uid, firestore, isUserLoading]);
 
   const { data: allProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject & {path: string}>(userProjectsQuery);
 
