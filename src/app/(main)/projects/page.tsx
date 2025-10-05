@@ -35,7 +35,7 @@ export default function ProjectsPage() {
   const [isDeleting, startDeleting] = useTransition();
 
   const userProjectsQuery = useMemoFirebase(() => {
-    if (isUserLoading || !user) return null;
+    if (isUserLoading || !user) return null; // Wait for user to be loaded
     return query(
       collectionGroup(firestore, 'projects'),
       where('collaborators', 'array-contains', user.uid),
