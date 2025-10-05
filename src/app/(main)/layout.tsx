@@ -38,7 +38,20 @@ import { useFirebase } from '@/firebase';
 import { useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2 } from 'lucide-react';
+import Image from 'next/image';
+import { Inter, Source_Code_Pro } from 'next/font/google';
 
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
+const sourceCodePro = Source_Code_Pro({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-source-code-pro',
+});
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
@@ -148,7 +161,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 export default function ProviderWrappedLayout({ children }: { children: React.ReactNode }) {
     return (
         <AppProvider>
-            <MainLayout>{children}</MainLayout>
+            <main className={`${inter.variable} ${sourceCodePro.variable}`}>
+              <MainLayout>{children}</MainLayout>
+            </main>
         </AppProvider>
     )
 }
