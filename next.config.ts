@@ -35,7 +35,10 @@ const nextConfig: NextConfig = {
 };
 
 if (process.env.NODE_ENV === 'development') {
-    const devOrigin = process.env.GITPOD_WORKSPACE_URL?.replace('https://', 'https://6000-');
+    const devOrigin = process.env.GOOGLE_WORKSTATIONS_HOST
+      ? `https://${process.env.GOOGLE_WORKSTATIONS_HOST}`
+      : process.env.GITPOD_WORKSPACE_URL?.replace('https://', 'https://3000-');
+
     if (devOrigin) {
         nextConfig.experimental = {
             ...nextConfig.experimental,
