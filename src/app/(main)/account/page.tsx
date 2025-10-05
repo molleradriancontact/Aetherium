@@ -3,7 +3,7 @@
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase, useDoc, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
-import { Loader2, Mail, Calendar, Save } from "lucide-react";
+import { Loader2, Mail, Calendar, Save, Upload } from "lucide-react";
 import { doc } from "firebase/firestore";
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,10 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import React from "react";
+import React, { useRef, useState, useTransition } from "react";
 import { updateProfile } from "firebase/auth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 
 const profileSchema = z.object({
@@ -28,11 +30,14 @@ interface UserProfile {
     email: string;
     username: string;
     registrationDate: string | Date;
+    photoURL?: string;
 }
 
 export default function AccountPage() {
     const { user, auth, firestore } = useFirebase();
     const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isUploading, startUploading] = useTransition();
 
     const userDocRef = useMemoFirebase(() => {
         if (!user || !firestore) return null;
@@ -56,13 +61,56 @@ export default function AccountPage() {
         }
     }, [userProfile, user, setValue]);
 
+    const handleAvatarClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !user) return;
+        
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+            toast({
+                title: "File too large",
+                description: "Please select an image smaller than 5MB.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        startUploading(async () => {
+            try {
+                const storage = getStorage();
+                const storageRef = ref(storage, `profile-pictures/${user.uid}`);
+                
+                await uploadBytes(storageRef, file);
+                const photoURL = await getDownloadURL(storageRef);
+
+                await updateProfile(auth.currentUser!, { photoURL });
+                setDocumentNonBlocking(userDocRef!, { photoURL }, { merge: true });
+
+                toast({
+                    title: "Avatar Updated",
+                    description: "Your new avatar has been saved.",
+                });
+
+            } catch (error) {
+                console.error("Error uploading avatar:", error);
+                const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+                toast({
+                    title: "Avatar Upload Failed",
+                    description: errorMessage,
+                    variant: "destructive",
+                });
+            }
+        });
+    };
+
     const onSubmit = async (data: ProfileFormValues) => {
         if (!userDocRef || !auth.currentUser) return;
         
-        // Use non-blocking update for Firestore. Errors are handled globally.
         setDocumentNonBlocking(userDocRef, { username: data.username }, { merge: true });
 
-        // Firebase Auth profile update can be awaited for immediate UI feedback.
         try {
             await updateProfile(auth.currentUser, { displayName: data.username });
             
@@ -118,20 +166,48 @@ export default function AccountPage() {
                     <CardDescription>This is how your profile appears to the system.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="flex items-center gap-4">
-                        <Mail className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Email</p>
-                            <p className="text-sm text-foreground">{userProfile.email}</p>
+                    <div className="flex items-center gap-6">
+                        <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
+                            <Avatar className="h-24 w-24">
+                                <AvatarImage src={userProfile.photoURL ?? user?.photoURL ?? undefined} alt={userProfile.username} />
+                                <AvatarFallback className="text-3xl">
+                                    {userProfile.username?.[0].toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                {isUploading ? (
+                                    <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                ) : (
+                                    <Upload className="h-8 w-8 text-white" />
+                                )}
+                            </div>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                accept="image/png, image/jpeg, image/gif"
+                                className="hidden"
+                                disabled={isUploading}
+                            />
                         </div>
-                    </div>
-                     <div className="flex items-center gap-4">
-                        <Calendar className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Member Since</p>
-                            <p className="text-sm text-foreground">
-                                {userProfile.registrationDate ? format(new Date(userProfile.registrationDate), 'MMMM d, yyyy') : 'N/A'}
-                            </p>
+
+                        <div className="space-y-4">
+                             <div className="flex items-center gap-4">
+                                <Mail className="h-5 w-5 text-muted-foreground" />
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Email</p>
+                                    <p className="text-sm text-foreground">{userProfile.email}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <Calendar className="h-5 w-5 text-muted-foreground" />
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Member Since</p>
+                                    <p className="text-sm text-foreground">
+                                        {userProfile.registrationDate ? format(new Date(userProfile.registrationDate), 'MMMM d, yyyy') : 'N/A'}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </CardContent>
