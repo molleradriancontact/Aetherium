@@ -87,11 +87,11 @@ export default function GenerativeMediaPage() {
                 {isGeneratingImage ? 'Generating...' : 'Generate Image'}
               </Button>
             </div>
-            <Card className="mt-4 aspect-square bg-muted flex items-center justify-center">
+            <Card className="mt-4 aspect-square bg-muted flex items-center justify-center relative">
               {isGeneratingImage ? (
                 <Loader2 className="h-10 w-10 text-primary animate-spin" />
               ) : generatedImage ? (
-                <Image src={generatedImage} alt="Generated image" width={512} height={512} className="rounded-md object-contain" />
+                <Image src={generatedImage} alt="Generated image" fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="rounded-md object-contain" />
               ) : (
                 <ImageIcon className="h-16 w-16 text-muted-foreground" />
               )}
