@@ -41,6 +41,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Inter, Source_Code_Pro } from 'next/font/google';
+import { ProjectSwitcher } from '@/components/project-switcher';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -88,16 +89,13 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     if (auth) {
         sessionStorage.setItem('manual_logout', 'true');
         await auth.signOut();
-        clearState(true);
-        router.push('/login');
+        clearState(true); // Force clear and navigate
     }
   };
 
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    if (pathname !== '/') {
-        clearState(true); // force a clear and nav
-    }
+    clearState(true); // Force clear and navigate to home
   }
   
   if (isUserLoading || !user) {
@@ -111,13 +109,16 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
-        <SidebarHeader className="p-4">
-          <Link href="/" className="flex items-center gap-2 group/logo" onClick={handleLogoClick}>
-            <Logo className="size-8 text-primary transition-transform group-hover/logo:rotate-[-15deg]" />
-            <span className="font-headline text-xl font-semibold text-primary group-data-[collapsible=icon]:hidden">
-              Aetherium
-            </span>
-          </Link>
+        <SidebarHeader className="p-2 space-y-2">
+           <div className="flex items-center gap-2 p-2">
+             <Link href="/" className="flex items-center gap-2 group/logo" onClick={handleLogoClick}>
+                <Logo className="size-8 text-primary transition-transform group-hover/logo:rotate-[-15deg]" />
+             </Link>
+             <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
+                <Link href="/" onClick={handleLogoClick} className="font-headline text-xl font-semibold text-primary">Aetherium</Link>
+             </div>
+           </div>
+          <ProjectSwitcher />
         </SidebarHeader>
         <SidebarMenu>
           {navItems.map(item => (
