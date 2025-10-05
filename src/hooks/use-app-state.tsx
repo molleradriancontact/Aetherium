@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest-backend-changes-from-analysis';
@@ -23,7 +22,7 @@ export type AppState = {
   addHistory: (message: string) => void;
   clearState: (forceNav?: boolean) => void;
   projectId: string | null;
-  setProjectId: (id: string | null) => void;
+  setProjectId: (id: string | null, path?: string | null) => void;
   uploadedFiles: UploadedFile[];
   startAnalysis: (files: UploadedFile[], isPublic?: boolean) => Promise<string>;
   chatHistory: Message[];

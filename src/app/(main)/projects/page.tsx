@@ -77,8 +77,8 @@ export default function ProjectsPage() {
     });
   }
 
-  const handleSelectProject = (projectId: string) => {
-    setProjectId(projectId);
+  const handleSelectProject = (project: ArchitectProject & { path?: string }) => {
+    setProjectId(project.id, project.path);
     router.push('/');
   }
 
@@ -122,7 +122,7 @@ export default function ProjectsPage() {
                         </div>
                     </CardContent>
                     <CardContent className="flex items-center justify-between gap-2">
-                         <Button onClick={() => handleSelectProject(project.id)}>Open Project</Button>
+                         <Button onClick={() => handleSelectProject(project)}>Open Project</Button>
                          {user?.uid === project.userId && (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>

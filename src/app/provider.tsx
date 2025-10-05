@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest-backend-changes-from-analysis';
@@ -90,7 +89,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return null;
   });
 
-  const setProjectId = (id: string | null, path?: string) => {
+  const setProjectId = (id: string | null, path?: string | null) => {
     _setProjectId(id);
     if (typeof window !== 'undefined') {
       if (id) {
@@ -203,6 +202,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                     return;
                 }
                 docRef = initialSnapshot.docs[0].ref;
+                // Since we found it via query, let's save the path for next time
+                setProjectId(projectId, docRef.path);
             }
 
             unsubscribeRef.current = onSnapshot(docRef, (doc) => {
