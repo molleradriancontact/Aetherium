@@ -38,10 +38,12 @@ const chatFlow = ai.defineFlow(
 
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-1.5-flash'),
-      tools: [saveDocumentTool],
-      system: systemInstruction,
-      history: history,
       prompt: prompt,
+      history: history,
+      config: {
+        tools: [saveDocumentTool],
+        systemInstruction: systemInstruction,
+      }
     });
 
     const choice = llmResponse.choices[0];
