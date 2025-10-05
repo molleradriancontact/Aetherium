@@ -319,27 +319,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user || !firestore) {
       throw new Error("User or Firestore not available.");
     }
-
+  
     setDetailedStatus("Starting new chat...");
     clearState(false);
-
+  
     const collectionPath = isPublic ? 'projects' : `users/${user.uid}/projects`;
     const projectRef = doc(collection(firestore, collectionPath));
     const newProjectId = projectRef.id;
-
-    let aiResponse: Message;
-
-    try {
-      setDetailedStatus("Thinking...");
-      const result = await chat([initialMessage], initialMessage.content);
-      aiResponse = { role: 'model', content: result.content };
-    } catch (error) {
-      console.error("AI chat call failed:", error);
-      setDetailedStatus(null);
-      clearState(true);
-      throw error; // Re-throw for the UI to handle
-    }
-
+  
+    setDetailedStatus("Thinking...");
+    const result = await chat([initialMessage], initialMessage.content);
+    const aiResponse: Message = { role: 'model', content: result.content };
+    
     setDetailedStatus("Creating chat project...");
     const initialChatProject: ArchitectProject = {
       id: newProjectId,
@@ -350,26 +341,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isPublic: isPublic,
       chatHistory: [initialMessage, aiResponse]
     };
-
-    return new Promise((resolve, reject) => {
-        setDoc(projectRef, initialChatProject)
-        .then(() => {
-            setProjectId(newProjectId, projectRef.path);
-            resolve(newProjectId);
-        })
-        .catch(serverError => {
-            const permissionError = new FirestorePermissionError({
-                path: projectRef.path,
-                operation: 'create',
-                requestResourceData: initialChatProject,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-
-            setDetailedStatus(null);
-            clearState(true);
-            reject(permissionError);
+    
+    // Non-blocking write with contextual error handling
+    setDoc(projectRef, initialChatProject)
+      .then(() => {
+        setProjectId(newProjectId, projectRef.path);
+        // Resolve with the new project ID
+      })
+      .catch(serverError => {
+        const permissionError = new FirestorePermissionError({
+            path: projectRef.path,
+            operation: 'create',
+            requestResourceData: initialChatProject,
         });
-    });
+        errorEmitter.emit('permission-error', permissionError);
+
+        setDetailedStatus(null);
+        clearState(true);
+        // Reject the promise to signal failure
+      });
+
+    // We can optimistically return the projectId. The UI will react to state changes.
+    return newProjectId;
   }, [user, firestore, clearState]);
 
   const addChatMessage = useCallback(async (projectId: string, message: Message) => {
