@@ -1,14 +1,15 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { Message, ProjectChatRequestSchema, ProjectChatResponseSchema } from './schemas';
+import { Message, ResearchRequestSchema, ResearchResponseSchema } from './schemas';
 import { googleAI } from '@genkit-ai/google-genai';
 
 const deepResearchTool = ai.defineTool(
   {
     name: 'deepResearch',
-    description: 'Performs a deep research on a given topic using web search to find the most relevant and up-to-date information. Use this when the user asks a question that cannot be answered from the provided analysis report.',
+    description: 'Performs a deep research on a given topic using web search to find the most relevant and up-to-date information. Use this for any user query that requires external knowledge.',
     inputSchema: z.object({
       query: z.string().describe('The topic or question to research.'),
     }),
@@ -35,25 +36,25 @@ This information was synthesized from external sources to provide a comprehensiv
 );
 
 
-const projectChatFlow = ai.defineFlow(
+const researchFlow = ai.defineFlow(
   {
-    name: 'projectChatFlow',
-    inputSchema: ProjectChatRequestSchema,
-    outputSchema: ProjectChatResponseSchema,
+    name: 'researchFlow',
+    inputSchema: ResearchRequestSchema,
+    outputSchema: ResearchResponseSchema,
   },
   async ({ messages, analysisReport }) => {
-    const systemInstruction = `You are an expert AI software architect and researcher, and you are having a conversation with a user about their project. You have already performed a detailed analysis.
+    const systemInstruction = `You are an expert AI researcher. Your primary goal is to answer the user's questions by performing deep research using the tools available to you.
+    
+If the user has provided an analysis report, you can use it as conversational context, but you MUST prioritize using the 'deepResearch' tool to find the most current and relevant external information to answer the user's query. Do not rely solely on the report.
 
-You MUST use the provided analysis report as the primary source of truth and context for your answers.
+Your main function is to be a research assistant.
 
-If the user asks a question that cannot be answered from the report, you MUST use the 'deepResearch' tool to find external information. Your goal is to help the user understand the analysis, explore ideas, and decide on modifications, using external knowledge when necessary.
-
-Here is the full analysis report for the project:
+Analysis Report (if provided):
 ---
-${analysisReport}
+${analysisReport || "No project analysis report provided."}
 ---
 
-Based on that report and the user's questions, provide clear, helpful, and concise answers. Be ready to elaborate on parts of the report, suggest code changes, discuss architectural decisions, and perform deep research when required.
+Based on the user's question, perform the necessary research and provide a clear, helpful, and concise answer.
 `;
 
     const llmResponse = await ai.generate({
@@ -69,9 +70,9 @@ Based on that report and the user's questions, provide clear, helpful, and conci
   }
 );
 
-export async function projectChat(
-  request: z.infer<typeof ProjectChatRequestSchema>
-): Promise<z.infer<typeof ProjectChatResponseSchema>> {
+export async function research(
+  request: z.infer<typeof ResearchRequestSchema>
+): Promise<z.infer<typeof ResearchResponseSchema>> {
   if (request.messages.length === 0) return { content: '' };
-  return projectChatFlow(request);
+  return researchFlow(request);
 }

@@ -8,20 +8,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Bot, User, Copy, CopyCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAppState } from '@/hooks/use-app-state';
 import { research } from '@/ai/flows/research';
 import type { Message } from '@/ai/flows/schemas';
+import { useAppState } from '@/hooks/use-app-state';
 
-export function ProjectChatInterface() {
+export function ResearchChatInterface() {
   const [input, setInput] = useState('');
   const [isResponding, startResponding] = useTransition();
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
 
   const { toast } = useToast();
-  const { projectId, chatHistory, addChatMessage, analysisReport, detailedStatus } = useAppState();
+  // We still might use the analysis report from the global state as optional context
+  const { analysisReport, detailedStatus } = useAppState();
 
-  const messages = chatHistory || [];
   const isLoading = !!detailedStatus;
 
   const scrollToBottom = () => {
@@ -35,28 +36,27 @@ export function ProjectChatInterface() {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || !projectId) return;
+    if (!input.trim()) return;
 
     const userMessage: Message = { role: 'user', content: input };
-    await addChatMessage(projectId, userMessage);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput('');
 
     startResponding(async () => {
       try {
         const result = await research({
-          messages: [...messages, userMessage],
-          analysisReport: analysisReport || "",
+          messages: newMessages,
+          analysisReport: analysisReport || undefined, // Pass report as optional context
         });
         
         const aiResponse: Message = { role: 'model', content: result.content };
-        await addChatMessage(projectId, aiResponse);
+        setMessages(prev => [...prev, aiResponse]);
       } catch (error) {
-        console.error('Project Chat error:', error);
+        console.error('Research Chat error:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
         const errorResponse: Message = { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` };
-        if (projectId) {
-            await addChatMessage(projectId, errorResponse);
-        }
+        setMessages(prev => [...prev, errorResponse]);
       }
     });
   };
@@ -78,9 +78,9 @@ export function ProjectChatInterface() {
     <Card className="h-full flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-            <CardTitle>Project Chat</CardTitle>
+            <CardTitle>Research Assistant</CardTitle>
             <CardDescription>
-                Ask the AI anything about your project's analysis.
+                Ask any question, and the AI will use web search to find an answer.
             </CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={handleCopyChat} disabled={messages.length === 0}>
@@ -113,8 +113,8 @@ export function ProjectChatInterface() {
              {messages.length === 0 && !isResponding && (
                 <div className="text-center text-muted-foreground p-8">
                     <Bot className="h-10 w-10 mx-auto mb-4" />
-                    <p>This is the project-aware chat.</p>
-                    <p className="text-xs mt-2">Ask me anything about the analysis report or suggest modifications.</p>
+                    <p>Start a new research session.</p>
+                    <p className="text-xs mt-2">Your conversation here is temporary and will not be saved to a project.</p>
                 </div>
              )}
               {isResponding && (
@@ -131,7 +131,7 @@ export function ProjectChatInterface() {
           <Textarea
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Ask about your project..."
+            placeholder="Ask a question..."
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();

@@ -7,11 +7,12 @@ export const MessageSchema = z.object({
 });
 export type Message = z.infer<typeof MessageSchema>;
 
-export const ProjectChatRequestSchema = z.object({
+export const ResearchRequestSchema = z.object({
   messages: z.array(MessageSchema),
-  analysisReport: z.string(),
+  // Analysis report is now optional for the research flow
+  analysisReport: z.string().optional(),
 });
 
-export const ProjectChatResponseSchema = z.object({
+export const ResearchResponseSchema = z.object({
   content: z.string(),
 });
