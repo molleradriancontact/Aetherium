@@ -6,7 +6,7 @@ import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/sugges
 import { AppStateContext, HistoryItem } from '@/hooks/use-app-state';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFirebase, useMemoFirebase, errorEmitter, FirestorePermissionError, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, collectionGroup, query, where, getDocs, getDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, collectionGroup, query, where, getDocs, getDoc, writeBatch, FieldValue } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
 import { generateProjectName } from '@/ai/flows/generate-project-name';
@@ -188,24 +188,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         try {
             if (directPath) {
                 docRef = doc(firestore, directPath);
-                const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) {
-                     console.warn(`Project with direct path ${directPath} not found.`);
-                     clearState(true);
-                     return;
-                }
             } else {
-                const projectsQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
-                const initialSnapshot = await getDocs(projectsQuery);
-                if (initialSnapshot.empty) {
-                    console.warn(`Project with id ${projectId} not found via query.`);
-                    clearState(true);
-                    return;
-                }
-                docRef = initialSnapshot.docs[0].ref;
-                // Since we found it via query, let's save the path for next time
-                setProjectId(projectId, docRef.path);
+                console.warn(`Direct path for project ${projectId} not found in session storage. This should not happen with the new data model.`);
+                clearState(true);
+                return;
             }
+
+            const docSnap = await getDoc(docRef);
+             if (!docSnap.exists()) {
+                 console.warn(`Project with direct path ${directPath} not found.`);
+                 clearState(true);
+                 return;
+            }
+
 
             unsubscribeRef.current = onSnapshot(docRef, (doc) => {
                 if (doc.exists()) {
@@ -240,20 +235,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addHistory = useCallback(async (message: string) => {
     if (!user || !firestore || !projectId) return;
 
-    const projectQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
-    const querySnapshot = await getDocs(projectQuery);
+    const projectPath = sessionStorage.getItem(`projectPath_${projectId}`);
+    if (!projectPath) return;
 
-    if (querySnapshot.empty) {
-        console.error("Project not found for history update");
-        return;
-    }
-    const projectRef = querySnapshot.docs[0].ref;
+    const projectRef = doc(firestore, projectPath);
 
     const newHistoryItem = { id: Date.now(), message, timestamp: new Date() };
-    const updatedHistory = [...history, newHistoryItem];
     
-    setHistory(updatedHistory);
-    updateDocumentNonBlocking(projectRef, { history: updatedHistory });
+    // We don't need to set local state `setHistory` as onSnapshot will handle it.
+    updateDocumentNonBlocking(projectRef, { history: [...history, newHistoryItem] });
 
   }, [user, firestore, projectId, history]);
 
@@ -266,9 +256,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDetailedStatus("Creating new analysis project");
     clearState(false);
 
-    const collectionPath = isPublic ? 'projects' : `users/${user.uid}/projects`;
+    const collectionPath = 'projects';
     const projectRef = doc(collection(firestore, collectionPath));
     const newProjectId = projectRef.id;
+
+    const userProfileRef = doc(firestore, 'users', user.uid);
 
     const initialProject: ArchitectProject = {
       id: newProjectId,
@@ -288,7 +280,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }]
     };
 
-    await setDoc(projectRef, initialProject);
+    const batch = writeBatch(firestore);
+    batch.set(projectRef, initialProject);
+    batch.update(userProfileRef, {
+        projects: FieldValue.arrayUnion({ projectId: newProjectId, projectPath: projectRef.path })
+    });
+    await batch.commit();
+    
     setProjectId(newProjectId, projectRef.path);
 
     (async () => {
@@ -327,10 +325,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDetailedStatus("Starting new chat...");
     clearState(false);
   
-    const collectionPath = isPublic ? 'projects' : `users/${user.uid}/projects`;
+    const collectionPath = 'projects';
     const projectRef = doc(collection(firestore, collectionPath));
     const newProjectId = projectRef.id;
   
+    const userProfileRef = doc(firestore, 'users', user.uid);
+
     setDetailedStatus("Thinking...");
     const result = await chat([initialMessage], initialMessage.content);
     const aiResponse: Message = { role: 'model', content: result.content };
@@ -353,7 +353,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }]
     };
     
-    setDocumentNonBlocking(projectRef, initialChatProject);
+    const batch = writeBatch(firestore);
+    batch.set(projectRef, initialChatProject);
+    batch.update(userProfileRef, {
+        projects: FieldValue.arrayUnion({ projectId: newProjectId, projectPath: projectRef.path })
+    });
+    await batch.commit();
 
     setProjectId(newProjectId, projectRef.path);
     return newProjectId;
@@ -362,42 +367,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addChatMessage = useCallback(async (projectId: string, message: Message) => {
     if (!firestore) return;
     
-    const projectQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
-    const querySnapshot = await getDocs(projectQuery);
+    const projectPath = sessionStorage.getItem(`projectPath_${projectId}`);
+    if (!projectPath) return;
 
-    if (querySnapshot.empty) {
-        console.error("Project not found for adding chat message");
-        return;
-    }
-    const projectRef = querySnapshot.docs[0].ref;
+    const projectRef = doc(firestore, projectPath);
     
     const updatedHistory = [...(chatHistory || []), message];
 
-    setChatHistory(updatedHistory);
     updateDocumentNonBlocking(projectRef, { chatHistory: updatedHistory });
 
   }, [firestore, chatHistory]);
 
   const setFrontendSuggestions = useCallback(async (suggestions: SuggestFrontendChangesFromAnalysisOutput | null) => {
       if (!projectId || !firestore) return;
-      const projectQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
-      const querySnapshot = await getDocs(projectQuery);
-      if (querySnapshot.empty) return;
-      const projectRef = querySnapshot.docs[0].ref;
+      
+      const projectPath = sessionStorage.getItem(`projectPath_${projectId}`);
+      if (!projectPath) return;
 
+      const projectRef = doc(firestore, projectPath);
       updateDocumentNonBlocking(projectRef, { frontendSuggestions: suggestions });
-      _setFrontendSuggestions(suggestions);
   }, [projectId, firestore]);
 
   const setBackendSuggestions = useCallback(async (suggestions: SuggestBackendChangesFromAnalysisOutput | null) => {
       if (!projectId || !firestore) return;
-      const projectQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
-      const querySnapshot = await getDocs(projectQuery);
-      if (querySnapshot.empty) return;
-      const projectRef = querySnapshot.docs[0].ref;
+      const projectPath = sessionStorage.getItem(`projectPath_${projectId}`);
+      if (!projectPath) return;
 
+      const projectRef = doc(firestore, projectPath);
       updateDocumentNonBlocking(projectRef, { backendSuggestions: suggestions });
-      _setBackendSuggestions(suggestions);
   }, [projectId, firestore]);
 
   const value = {
@@ -428,3 +425,5 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
+
+    

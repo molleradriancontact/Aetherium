@@ -8,8 +8,8 @@ import { ArchitectProject } from "@/app/provider";
 import { useAppState } from "@/hooks/use-app-state";
 import { Globe, LayoutGrid, Loader2, Lock, Trash2, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { collection, query, orderBy, collectionGroup, where } from "firebase/firestore";
-import { useTransition } from "react";
+import { collection, query, orderBy, getDocs, doc, getDoc } from "firebase/firestore";
+import { useTransition, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { deleteProject } from "@/app/actions";
 import { format } from "date-fns";
@@ -25,7 +25,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useCollection } from "@/firebase/firestore/use-collection";
+
+interface UserProfile {
+    projects?: { projectId: string; projectPath: string }[];
+}
 
 export default function ProjectsPage() {
   const { user, firestore, isUserLoading } = useFirebase();
@@ -34,16 +37,59 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [isDeleting, startDeleting] = useTransition();
 
-  const userProjectsQuery = useMemoFirebase(() => {
-    if (!user?.uid) return null;
-    return query(
-      collectionGroup(firestore, 'projects'),
-      where('collaborators', 'array-contains', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-  }, [user?.uid, firestore]);
+  const [allProjects, setAllProjects] = useState<(ArchitectProject & {path: string})[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
-  const { data: allProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject & {path: string}>(userProjectsQuery);
+  useEffect(() => {
+    if (isUserLoading || !firestore || !user?.uid) {
+        if (!isUserLoading) {
+            setIsLoadingProjects(false);
+        }
+        return;
+    };
+
+    const fetchProjects = async () => {
+        setIsLoadingProjects(true);
+        try {
+            const userProfileRef = doc(firestore, 'users', user.uid);
+            const userProfileSnap = await getDoc(userProfileRef);
+
+            if (!userProfileSnap.exists()) {
+                setAllProjects([]);
+                return;
+            }
+            
+            const userProfile = userProfileSnap.data() as UserProfile;
+            const projectRefs = userProfile.projects || [];
+
+            if (projectRefs.length === 0) {
+                setAllProjects([]);
+                return;
+            }
+
+            const projectPromises = projectRefs.map(pRef => getDoc(doc(firestore, pRef.projectPath)));
+            const projectSnaps = await Promise.all(projectPromises);
+            
+            const projects = projectSnaps
+                .filter(snap => snap.exists())
+                .map(snap => ({ ...snap.data(), id: snap.id, path: snap.ref.path } as ArchitectProject & {path: string}));
+            
+            projects.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+
+            setAllProjects(projects);
+
+        } catch (error) {
+            console.error("Error fetching projects:", error);
+            toast({ title: "Failed to load projects", variant: 'destructive'});
+            setAllProjects([]);
+        } finally {
+            setIsLoadingProjects(false);
+        }
+    }
+    fetchProjects();
+
+  }, [user?.uid, firestore, isUserLoading, toast]);
+
 
   const isLoading = isUserLoading || isLoadingProjects;
 
@@ -59,6 +105,7 @@ export default function ProjectsPage() {
             if (activeProjectId === projectId) {
                 clearState(true);
             }
+             setAllProjects(prev => prev.filter(p => p.id !== projectId));
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
             toast({
@@ -159,3 +206,5 @@ export default function ProjectsPage() {
     </div>
   );
 }
+
+    

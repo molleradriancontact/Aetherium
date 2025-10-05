@@ -1,15 +1,15 @@
 
 {
   "entities": {
-    "User": {
+    "AuthUser": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
+      "title": "AuthUser",
       "type": "object",
-      "description": "Represents a user of the Aetherium application.",
+      "description": "Represents a user's authentication record.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user."
+          "description": "Unique identifier for the user (UID)."
         },
         "email": {
           "type": "string",
@@ -18,7 +18,7 @@
         },
         "username": {
           "type": "string",
-          "description": "The username of the user, unique across the platform."
+          "description": "The display name of the user."
         },
         "photoURL": {
           "type": "string",
@@ -31,13 +31,37 @@
           "format": "date-time"
         }
       },
-      "required": [
-        "id",
-        "email",
-        "username",
-        "registrationDate"
-      ]
+      "required": ["id", "email", "registrationDate"]
     },
+    "UserProfile": {
+        "title": "User Profile",
+        "type": "object",
+        "description": "Stores public-facing user information and project associations.",
+        "properties": {
+          "id": { "type": "string" },
+          "username": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "photoURL": { "type": "string", "format": "uri" },
+          "projects": {
+            "type": "array",
+            "description": "A list of references to projects the user is a member of.",
+            "items": {
+              "$ref": "#/entities/ProjectRef"
+            }
+          }
+        },
+        "required": ["id", "username", "email"]
+      },
+      "ProjectRef": {
+        "title": "Project Reference",
+        "type": "object",
+        "description": "A reference to a project.",
+        "properties": {
+          "projectId": { "type": "string" },
+          "projectPath": { "type": "string" }
+        },
+        "required": ["projectId", "projectPath"]
+      },
     "ArchitectProject": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ArchitectProject",
@@ -235,21 +259,15 @@
   "firestore": {
     "/users/{userId}": {
       "schema": {
-        "$ref": "#/entities/User"
+        "$ref": "#/entities/UserProfile"
       },
-      "description": "Stores user profile information."
+      "description": "Stores user profile information, including their projects."
     },
     "/projects/{projectId}": {
       "schema": {
         "$ref": "#/entities/ArchitectProject"
       },
-      "description": "Stores all public projects."
-    },
-    "/users/{userId}/projects/{projectId}": {
-      "schema": {
-        "$ref": "#/entities/ArchitectProject"
-      },
-      "description": "Stores the private analysis and chat projects for each user."
+      "description": "Stores all projects, public or private."
     },
     "/users/{userId}/invitations/{invitationId}": {
       "schema": {
@@ -259,3 +277,5 @@
     }
   }
 }
+
+    

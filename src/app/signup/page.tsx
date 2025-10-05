@@ -55,15 +55,15 @@ export default function SignUpPage() {
         }
 
         const userRef = doc(firestore, 'users', user.uid);
-        const userData = {
+        const userProfileData = {
           id: user.uid,
           email: user.email,
           username: finalUsername,
           photoURL: photoURL || user.photoURL,
-          registrationDate: new Date().toISOString(),
+          projects: [],
         };
         
-        setDocumentNonBlocking(userRef, userData, { merge: true });
+        setDocumentNonBlocking(userRef, userProfileData, { merge: true });
         
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -217,3 +217,5 @@ export default function SignUpPage() {
     </div>
   );
 }
+
+    

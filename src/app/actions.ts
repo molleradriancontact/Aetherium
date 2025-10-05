@@ -53,14 +53,30 @@ export async function deleteProject(projectId: string) {
     const { db } = getInitializedAdmin();
 
     try {
-        const projectQuery = await db.collectionGroup('projects').where('id', '==', projectId).limit(1).get();
+        const projectDocRef = db.collection('projects').doc(projectId);
+        const projectDoc = await projectDocRef.get();
 
-        if (projectQuery.empty) {
+        if (!projectDoc.exists) {
             throw new Error("Project not found.");
         }
+        
+        const projectData = projectDoc.data();
+        const collaboratorIds: string[] = projectData?.collaborators || [];
 
-        const projectDocRef = projectQuery.docs[0].ref;
-        await projectDocRef.delete();
+        const batch = db.batch();
+
+        // 1. Delete the project document
+        batch.delete(projectDocRef);
+
+        // 2. Remove project reference from each collaborator's profile
+        for (const userId of collaboratorIds) {
+            const userProfileRef = db.collection('users').doc(userId);
+            batch.update(userProfileRef, {
+                projects: FieldValue.arrayRemove({ projectId, projectPath: projectDocRef.path })
+            });
+        }
+        
+        await batch.commit();
         
         revalidatePath('/projects');
 
@@ -105,12 +121,11 @@ export async function addCollaborator(projectId: string, collaboratorEmail: stri
         const invitingUsername = invitingUserDoc.data()?.username || 'A user';
 
         // 3. Find the project document
-        const projectQuery = await db.collectionGroup('projects').where('id', '==', projectId).limit(1).get();
-        if (projectQuery.empty) {
+        const projectDoc = await db.collection('projects').doc(projectId).get();
+        if (!projectDoc.exists) {
             throw new Error("Project not found.");
         }
-        const projectDoc = projectQuery.docs[0];
-        const projectData = projectDoc.data();
+        const projectData = projectDoc.data()!;
 
         if (projectData.userId === invitedUserId) {
             throw new Error("You cannot invite the project owner.");
@@ -148,30 +163,37 @@ export async function addCollaborator(projectId: string, collaboratorEmail: stri
 }
 
 
-export async function removeCollaborator(projectId: string, collaboratorId: string, collaboratorDetails: any) {
+export async function removeCollaborator(projectId: string, collaboratorId: string) {
     if (!projectId || !collaboratorId) {
-        throw new Error("Project ID, and Collaborator ID are required.");
+        throw new Error("Project ID and Collaborator ID are required.");
     }
     
     const { db } = getInitializedAdmin();
 
     try {
-        const projectQuery = await db.collectionGroup('projects').where('id', '==', projectId).limit(1).get();
+        const projectRef = db.collection('projects').doc(projectId);
+        const userProfileRef = db.collection('users').doc(collaboratorId);
 
-        if (projectQuery.empty) {
-            throw new Error("Project not found.");
-        }
-
-        const projectRef = projectQuery.docs[0].ref;
+        const projectDoc = await projectRef.get();
+        if (!projectDoc.exists) throw new Error("Project not found.");
         
-        const updates = {
+        const collaboratorDetails = projectDoc.data()?.collaboratorDetails.find((c: any) => c.id === collaboratorId);
+
+        const batch = db.batch();
+
+        batch.update(projectRef, {
             collaborators: FieldValue.arrayRemove(collaboratorId),
             collaboratorDetails: FieldValue.arrayRemove(collaboratorDetails)
-        };
+        });
+
+        batch.update(userProfileRef, {
+            projects: FieldValue.arrayRemove({ projectId, projectPath: projectRef.path })
+        });
         
-        await projectRef.update(updates);
+        await batch.commit();
 
         revalidatePath('/collaboration');
+        revalidatePath(`/projects`); // To refresh user's project list if they are removed
         return { success: true };
     } catch (error) {
         console.error("Failed to remove collaborator:", error);
@@ -191,33 +213,44 @@ export async function acceptInvitation(invitationId: string) {
         throw new Error("Invitation not found or has expired.");
     }
     const invitationData = invitationDoc.data()!;
+    const projectId = invitationData.projectId;
+    
+    const projectRef = db.collection('projects').doc(projectId);
+    const userProfileRef = db.collection('users').doc(userId);
 
-    // Find project
-    const projectQuery = await db.collectionGroup('projects').where('id', '==', invitationData.projectId).limit(1).get();
-    if (projectQuery.empty) {
+    const projectDoc = await projectRef.get();
+    if (!projectDoc.exists) {
         throw new Error("The associated project could not be found.");
     }
-    const projectRef = projectQuery.docs[0].ref;
 
-    const userDoc = await db.collection('users').doc(userId).get();
-    if (!userDoc.exists) {
+    const userProfileDoc = await userProfileRef.get();
+    if (!userProfileDoc.exists) {
         throw new Error("Your user profile could not be found.");
     }
-    const userData = userDoc.data()!;
+    const userProfileData = userProfileDoc.data()!;
+    
+    const batch = db.batch();
 
-    // Add user to collaborators
-    await projectRef.update({
+    // 1. Add user to project's collaborators list
+    batch.update(projectRef, {
         collaborators: FieldValue.arrayUnion(userId),
         collaboratorDetails: FieldValue.arrayUnion({
             id: userId,
-            email: userData.email,
-            username: userData.username,
-            photoURL: userData.photoURL || null
+            email: userProfileData.email,
+            username: userProfileData.username,
+            photoURL: userProfileData.photoURL || null
         })
     });
     
-    // Delete invitation
-    await invitationRef.delete();
+    // 2. Add project reference to user's profile
+    batch.update(userProfileRef, {
+        projects: FieldValue.arrayUnion({ projectId, projectPath: projectRef.path })
+    });
+
+    // 3. Delete invitation
+    batch.delete(invitationRef);
+
+    await batch.commit();
 
     revalidatePath('/invitations');
     revalidatePath('/projects');
@@ -243,3 +276,5 @@ export async function declineInvitation(invitationId: string) {
     revalidatePath('/invitations');
     return { success: true };
 }
+
+    

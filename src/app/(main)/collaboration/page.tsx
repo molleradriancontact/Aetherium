@@ -36,7 +36,7 @@ const collaboratorSchema = z.object({
 type CollaboratorFormValues = z.infer<typeof collaboratorSchema>;
 
 export default function CollaborationPage() {
-  const { user, auth } = useFirebase();
+  const { user } = useFirebase();
   const { projectId, isHydrated, projectOwnerId, collaboratorDetails } = useAppState();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -52,9 +52,6 @@ export default function CollaborationPage() {
     if (!isOwner || !projectId) return;
     startTransition(async () => {
       try {
-        const idToken = await auth.currentUser?.getIdToken();
-        if (!idToken) throw new Error("Authentication token not found.");
-        
         await addCollaborator(projectId, data.email);
         toast({
           title: "Invitation Sent",
@@ -72,14 +69,17 @@ export default function CollaborationPage() {
     });
   }
 
-  const handleRemoveCollaborator = (collaborator: any) => {
+  const handleRemoveCollaborator = (collaboratorId: string) => {
     if (!isOwner || !projectId) return;
     startTransition(async () => {
       try {
-        await removeCollaborator(projectId, collaborator.id, collaborator);
+        const collaborator = collaboratorDetails.find(c => c.id === collaboratorId);
+        if (!collaborator) throw new Error("Collaborator details not found.");
+        
+        await removeCollaborator(projectId, collaboratorId);
         toast({
           title: "Collaborator Removed",
-          description: "The user has been removed from the project.",
+          description: `${collaborator.username} has been removed from the project.`,
         });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -160,7 +160,7 @@ export default function CollaborationPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleRemoveCollaborator(c)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              <AlertDialogAction onClick={() => handleRemoveCollaborator(c.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                                 Remove
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -212,3 +212,5 @@ export default function CollaborationPage() {
     </div>
   );
 }
+
+    
