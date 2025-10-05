@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowRight, FileText, Code, Database, Loader2, LayoutGrid } from "lucide-react";
 import { ProjectChatInterface } from "@/components/project-chat-interface";
 import { WelcomeCard } from "@/components/welcome-card";
+import { ProjectActivityFeed } from "@/components/project-activity-feed";
 
 export default function HomePage() {
   const { isHydrated, analysisReport, frontendSuggestions, backendSuggestions, detailedStatus, projectName } = useAppState();
@@ -35,6 +36,7 @@ export default function HomePage() {
                 <ProjectChatInterface />
             </div>
             <div className="space-y-6">
+                <ProjectActivityFeed />
                 <Card>
                     <CardHeader className="flex flex-row items-start justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Analysis Report</CardTitle>
@@ -86,18 +88,6 @@ export default function HomePage() {
                         )}
                         <Link href="/backend">
                             <Button variant="secondary">View Suggestions</Button>
-                        </Link>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-start justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Manage Projects</CardTitle>
-                        <LayoutGrid className="h-5 w-5 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-xs text-muted-foreground mb-4">Browse and manage all of your past projects.</p>
-                        <Link href="/projects">
-                            <Button variant="secondary">View All Projects</Button>
                         </Link>
                     </CardContent>
                 </Card>
