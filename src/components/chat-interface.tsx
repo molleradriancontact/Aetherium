@@ -66,37 +66,35 @@ export function ChatInterface() {
     const currentInput = input;
     setInput('');
     
-    try {
-        if (!projectId || !isChatProject) {
-            // This is the path for the FIRST message. It creates the project and gets the first AI response.
-            startResponding(async () => {
-                await startChat(userMessage);
-            });
-        } else {
-            // This is a subsequent message in an existing chat.
-            await addChatMessage(projectId, userMessage);
-            startResponding(async () => {
-                const historyForAI = [...(chatHistory || []), userMessage];
-                const result = await chat(historyForAI, currentInput);
-                const aiResponse: Message = { role: 'model', content: result.content };
-                
-                if (result.functionCall?.name === 'saveDocument') {
-                    await addChatMessage(projectId, aiResponse);
-                    const textToSave = result.functionCall.args.content;
-                    await handleSaveDocument(textToSave);
-                } else {
-                    await addChatMessage(projectId, aiResponse);
-                }
-            });
+    startResponding(async () => {
+      try {
+          if (!projectId || !isChatProject) {
+              // This is the path for the FIRST message. It creates the project and gets the first AI response.
+              await startChat(userMessage);
+          } else {
+              // This is a subsequent message in an existing chat.
+              await addChatMessage(projectId, userMessage);
+              const historyForAI = [...(chatHistory || []), userMessage];
+              const result = await chat(historyForAI, currentInput);
+              const aiResponse: Message = { role: 'model', content: result.content };
+              
+              if (result.functionCall?.name === 'saveDocument') {
+                  await addChatMessage(projectId, aiResponse);
+                  const textToSave = result.functionCall.args.content;
+                  await handleSaveDocument(textToSave);
+              } else {
+                  await addChatMessage(projectId, aiResponse);
+              }
+          }
+      } catch (error) {
+        console.error('Chat error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+        toast({ title: "Failed to Send", description: errorMessage, variant: 'destructive' });
+        if (projectId) {
+            await addChatMessage(projectId, { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` });
         }
-    } catch (error) {
-      console.error('Chat error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      toast({ title: "Failed to Send", description: errorMessage, variant: 'destructive' });
-      if (projectId) {
-          await addChatMessage(projectId, { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` });
       }
-    }
+    });
   };
 
   const handleCopyMessage = (content: string, index: number) => {

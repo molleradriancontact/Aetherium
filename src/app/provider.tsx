@@ -73,7 +73,7 @@ const createTree = (files: { path: string }[]): string => {
       return result;
     }
     return formatTree(root);
-};
+}
 
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
