@@ -1,12 +1,13 @@
+
 'use client';
 
 import { PageHeader } from "@/components/page-header";
 import { useAppState } from "@/hooks/use-app-state";
 import { Loader2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatInterface } from "@/components/chat-interface";
 import { FileUpload } from "@/components/file-upload";
 import { CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export default function PrototypePage() {
   const { isHydrated, detailedStatus } = useAppState();
@@ -32,24 +33,20 @@ export default function PrototypePage() {
             <p>{detailedStatus}...</p>
           </div>
         ) : (
-        <Tabs defaultValue="chat" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="chat">Start from an Idea</TabsTrigger>
-            <TabsTrigger value="upload">Analyze Existing Files</TabsTrigger>
-          </TabsList>
-          <TabsContent value="chat">
-            <CardDescription className="text-center mb-4 px-2">
-              Start a conversation with the AI to brainstorm and flesh out your ideas. A new "Chat Project" will be created. You can then ask the AI to save text as a document to create a full "Analysis Project".
-            </CardDescription>
-            <ChatInterface />
-          </TabsContent>
-          <TabsContent value="upload">
-            <CardDescription className="text-center mb-4 px-2">
-              Upload your existing documents, code, or project files. The AI will perform a deep analysis and generate a comprehensive report, creating a new "Analysis Project".
-            </CardDescription>
-            <FileUpload />
-          </TabsContent>
-        </Tabs>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+                 <CardDescription className="text-center mb-4 px-2">
+                    Start a conversation to brainstorm your ideas. The AI can then save your conversation as a document to begin a full analysis.
+                </CardDescription>
+                <ChatInterface />
+            </div>
+             <div>
+                <CardDescription className="text-center mb-4 px-2">
+                    Or, upload existing documents, code, or project files. The AI will perform a deep analysis and generate a comprehensive report.
+                </CardDescription>
+                <FileUpload />
+            </div>
+        </div>
       )}
     </div>
   );
