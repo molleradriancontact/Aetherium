@@ -12,6 +12,7 @@
 import 'dotenv/config';
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const SynthesizeDebatesInputSchema = z.object({
   analysisReports: z.array(z.object({
@@ -66,7 +67,7 @@ const synthesizeDebatesFlow = ai.defineFlow(
     outputSchema: SynthesizeDebatesOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input, { model: 'googleai/gemini-1.5-flash' });
+    const { output } = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
     if (!output?.debate || !output?.synthesis) {
         throw new Error("The AI failed to generate a valid debate and synthesis.");
     }

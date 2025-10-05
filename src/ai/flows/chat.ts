@@ -3,6 +3,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { Message, MessageSchema } from './schemas';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const saveDocumentTool = ai.defineTool(
   {
@@ -36,7 +37,7 @@ const chatFlow = ai.defineFlow(
     const systemInstruction = `You are a helpful AI assistant for the Aetherium application. Your primary role is to communicate with the user and help them analyze their code or text. If the user provides a block of text and asks you to "save this" or "create a document from this", use the saveDocument tool to pass the content for saving. Do not add any commentary when using the tool, just call it. Otherwise, just respond as a helpful assistant.`;
 
     const llmResponse = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
+      model: googleAI.model('gemini-1.5-flash'),
       tools: [saveDocumentTool],
       system: systemInstruction,
       history: history,

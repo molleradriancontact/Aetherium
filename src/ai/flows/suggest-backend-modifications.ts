@@ -9,6 +9,7 @@
 import 'dotenv/config';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const GeneratedFileSchema = z.object({
     path: z.string().describe("The full path of the file to be created or modified."),
@@ -62,7 +63,7 @@ const suggestBackendModificationsFlow = ai.defineFlow(
     outputSchema: SuggestBackendModificationsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input, { model: 'googleai/gemini-1.5-flash' });
+    const {output} = await prompt(input, { model: googleAI.model('gemini-1.5-flash') });
     return output!;
   }
 );

@@ -4,6 +4,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { Message, ProjectChatRequestSchema, ProjectChatResponseSchema } from './schemas';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const deepResearchTool = ai.defineTool(
   {
@@ -57,7 +58,7 @@ Based on that report and the user's questions, provide clear, helpful, and conci
 `;
 
     const llmResponse = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
+      model: googleAI.model('gemini-1.5-flash'),
       system: systemInstruction,
       prompt: messages.at(-1)?.content ?? '',
       history: messages.slice(0, -1),
