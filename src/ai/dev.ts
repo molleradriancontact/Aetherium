@@ -22,6 +22,7 @@ if (process.env.NODE_ENV === 'development' && (global as any).genkitFlowsRegiste
   require('./flows/generate-image.ts');
   require('./flows/generate-video.ts');
   require('./flows/modify-video-flow.ts');
+  require('./flows/run-system-check.ts');
 
   if (process.env.NODE_ENV === 'development') {
     (global as any).genkitFlowsRegistered = true;
