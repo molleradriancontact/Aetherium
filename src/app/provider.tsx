@@ -377,7 +377,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setBackendSuggestions = useCallback(async (suggestions: SuggestBackendChangesFromAnalysisOutput | null) => {
       if (!projectId || !firestore) return;
       const projectQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
-      const querySnapshot = await getDocs(querySnapshot);
+      const querySnapshot = await getDocs(projectQuery);
       if (querySnapshot.empty) return;
       const projectRef = querySnapshot.docs[0].ref;
 
