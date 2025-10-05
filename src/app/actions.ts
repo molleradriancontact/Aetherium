@@ -5,11 +5,26 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAdminApp, getAdminAuth } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { Auth, User } from 'firebase-admin/auth';
+import { Firestore } from 'firebase-admin/firestore';
 
 type GeneratedFile = {
     path: string;
     content: string;
 };
+
+let db: Firestore;
+let auth: Auth;
+
+function getInitializedAdmin() {
+    if (!db || !auth) {
+        const app = getAdminApp();
+        db = getFirestore(app);
+        auth = getAdminAuth();
+    }
+    return { db, auth };
+}
+
 
 /**
  * This server action is a placeholder.
@@ -35,10 +50,10 @@ export async function deleteProject(projectId: string) {
         throw new Error("Project ID is required.");
     }
     
-    const adminDb = getFirestore(getAdminApp());
+    const { db } = getInitializedAdmin();
 
     try {
-        const projectQuery = await adminDb.collectionGroup('projects').where('id', '==', projectId).limit(1).get();
+        const projectQuery = await db.collectionGroup('projects').where('id', '==', projectId).limit(1).get();
 
         if (projectQuery.empty) {
             throw new Error("Project not found.");
@@ -64,7 +79,7 @@ async function getUserIdFromToken() {
         throw new Error("Unauthorized: No user token provided.");
     }
     const token = authorization.split('Bearer ')[1];
-    const auth = getAdminAuth();
+    const { auth } = getInitializedAdmin();
     const decodedToken = await auth.verifyIdToken(token);
     return decodedToken.uid;
 }
@@ -74,8 +89,7 @@ export async function addCollaborator(projectId: string, collaboratorEmail: stri
         throw new Error("Project ID and Collaborator Email are required.");
     }
     
-    const db = getFirestore(getAdminApp());
-    const auth = getAdminAuth();
+    const { db, auth } = getInitializedAdmin();
     const invitingUserId = await getUserIdFromToken();
 
     try {
@@ -139,7 +153,7 @@ export async function removeCollaborator(projectId: string, collaboratorId: stri
         throw new Error("Project ID, and Collaborator ID are required.");
     }
     
-    const db = getFirestore(getAdminApp());
+    const { db } = getInitializedAdmin();
 
     try {
         const projectQuery = await db.collectionGroup('projects').where('id', '==', projectId).limit(1).get();
@@ -167,7 +181,7 @@ export async function removeCollaborator(projectId: string, collaboratorId: stri
 }
 
 export async function acceptInvitation(invitationId: string) {
-    const db = getFirestore(getAdminApp());
+    const { db } = getInitializedAdmin();
     const userId = await getUserIdFromToken();
 
     const invitationRef = db.collection('users').doc(userId).collection('invitations').doc(invitationId);
@@ -212,7 +226,7 @@ export async function acceptInvitation(invitationId: string) {
 
 
 export async function declineInvitation(invitationId: string) {
-    const db = getFirestore(getAdminApp());
+    const { db } = getInitializedAdmin();
     const userId = await getUserIdFromToken();
     
     const invitationRef = db.collection('users').doc(userId).collection('invitations').doc(invitationId);
