@@ -18,11 +18,7 @@ function ensureFirebaseInitialized() {
   } else {
     app = getApp();
   }
-
-  const auth = getAuth(app);
-  // Do not await this promise. It's a non-blocking call.
-  // The onAuthStateChanged listener will handle the user state once persistence is resolved.
-  setPersistence(auth, inMemoryPersistence);
+  
   appInitialized = true;
 }
 
@@ -30,6 +26,10 @@ function ensureFirebaseInitialized() {
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
   ensureFirebaseInitialized();
+  const auth = getAuth(app);
+  // Do not await this promise. It's a non-blocking call.
+  // The onAuthStateChanged listener will handle the user state once persistence is resolved.
+  setPersistence(auth, inMemoryPersistence);
   return getSdks();
 }
 
