@@ -115,6 +115,8 @@ export function FileUpload() {
   const fileList = useMemo(() => files.map((file, index) => (
     <li key={`${file.path}-${file.size}-${index}`} className="text-sm text-muted-foreground flex items-center gap-2">
       <Input
+        id={`file-path-${index}`}
+        aria-label="File path"
         value={file.path || ''}
         onChange={(e) => handleFileNameChange(index, e.target.value)}
         className="h-8 text-sm"
