@@ -12,6 +12,8 @@ import { ScrollArea } from './ui/scroll-area';
 import { UploadedFile } from '@/app/provider';
 import { Input } from './ui/input';
 import { useFirebase } from '@/firebase';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
 
 const readFileAsDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -27,6 +29,7 @@ export function FileUpload() {
   const { user } = useFirebase();
   const { toast } = useToast();
   const [files, setFiles] = useState<FileWithPath[]>([]);
+  const [isPublic, setIsPublic] = useState(true);
   const isProcessing = !!detailedStatus;
 
   const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
@@ -51,9 +54,8 @@ export function FileUpload() {
       const updatedFiles = [...prevFiles];
       const originalFile = updatedFiles[index];
       
-      // Create a new File object with the same content but a new path property
       const newFile = new File([originalFile], newPath, { type: originalFile.type }) as FileWithPath;
-      newFile.path = newPath;
+      (newFile as any).path = newPath;
       updatedFiles[index] = newFile;
       
       return updatedFiles;
@@ -63,7 +65,7 @@ export function FileUpload() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     getFilesFromEvent: async (event: any) => {
-        const fileList: File[] = [];
+        const fileList: FileWithPath[] = [];
         const items = event.dataTransfer?.items;
   
         if (items) {
@@ -77,17 +79,16 @@ export function FileUpload() {
           const allFiles = await Promise.all(promises);
           fileList.push(...allFiles.flat());
         } else if (event.target.files) {
-            fileList.push(...Array.from(event.target.files));
+            const files = Array.from(event.target.files as FileList) as FileWithPath[];
+            for(const file of files) {
+                if (!file.path) {
+                    (file as any).path = file.name;
+                }
+            }
+            fileList.push(...files);
         }
 
-        // Add a default path if it doesn't exist (for single file uploads)
-        return fileList.map(f => {
-            const fileWithPath = f as FileWithPath;
-            if (!fileWithPath.path) {
-                fileWithPath.path = fileWithPath.name;
-            }
-            return fileWithPath;
-        });
+        return fileList;
       },
   });
 
@@ -96,7 +97,7 @@ export function FileUpload() {
       return new Promise((resolve, reject) => {
         entry.file((file: File) => {
           const fileWithPath = file as FileWithPath;
-          fileWithPath.path = path + file.name;
+          (fileWithPath as any).path = path + file.name;
           resolve([fileWithPath]);
         }, reject);
       });
@@ -145,7 +146,7 @@ export function FileUpload() {
           content: await readFileAsDataURL(file)
         })));
 
-        await startAnalysis(uploadedFiles);
+        await startAnalysis(uploadedFiles, isPublic);
         
         toast({ title: 'Analysis Started', description: 'Your project is now being analyzed. You can see progress on the main page.' });
         
@@ -185,7 +186,16 @@ export function FileUpload() {
             <ScrollArea className="h-40 rounded-md border p-4">
               <ul className="space-y-2">{fileList}</ul>
             </ScrollArea>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-between items-center">
+                <div className="flex items-center space-x-2">
+                    <Switch 
+                        id="privacy-switch" 
+                        checked={!isPublic}
+                        onCheckedChange={(checked) => setIsPublic(!checked)}
+                        disabled={isProcessing}
+                    />
+                    <Label htmlFor="privacy-switch">Make Project Private</Label>
+                </div>
               <Button onClick={handleAnalyze} disabled={isProcessing}>
                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {detailedStatus ? `${detailedStatus}...` : 'Analyze Project'}

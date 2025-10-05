@@ -256,7 +256,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, firestore, projectId, history]);
 
 
-  const startAnalysis = useCallback(async (files: UploadedFile[], isPublic: boolean = false) => {
+  const startAnalysis = useCallback(async (files: UploadedFile[], isPublic: boolean = true) => {
     if (!user || !firestore) {
       throw new Error("User or Firestore not available.");
     }
@@ -310,7 +310,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return newProjectId;
   }, [user, firestore, clearState, addHistory]);
 
-  const startChat = useCallback(async (initialMessage: Message, isPublic: boolean = false): Promise<string> => {
+  const startChat = useCallback(async (initialMessage: Message, isPublic: boolean = true): Promise<string> => {
     if (!user || !firestore) {
       throw new Error("User or Firestore not available.");
     }
@@ -369,8 +369,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (querySnapshot.empty) return;
       const projectRef = querySnapshot.docs[0].ref;
 
-      _setFrontendSuggestions(suggestions);
       updateDocumentNonBlocking(projectRef, { frontendSuggestions: suggestions });
+      _setFrontendSuggestions(suggestions);
   }, [projectId, firestore]);
 
   const setBackendSuggestions = useCallback(async (suggestions: SuggestBackendChangesFromAnalysisOutput | null) => {
@@ -380,8 +380,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (querySnapshot.empty) return;
       const projectRef = querySnapshot.docs[0].ref;
 
-      _setBackendSuggestions(suggestions);
       updateDocumentNonBlocking(projectRef, { backendSuggestions: suggestions });
+      _setBackendSuggestions(suggestions);
   }, [projectId, firestore]);
 
   const value = {
@@ -412,5 +412,3 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
-
-    

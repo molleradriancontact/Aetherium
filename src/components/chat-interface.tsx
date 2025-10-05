@@ -12,11 +12,14 @@ import type { Message } from '@/ai/flows/schemas';
 import { useFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useAppState } from '@/hooks/use-app-state';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
 
 export function ChatInterface() {
   const [input, setInput] = useState('');
   const [isResponding, startResponding] = useTransition();
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
+  const [isPublic, setIsPublic] = useState(true);
   const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
 
   const { user } = useFirebase();
@@ -46,7 +49,7 @@ export function ChatInterface() {
     startResponding(async () => {
       try {
         const dataUrl = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
-        const newProjectId = await startAnalysis([{ path: 'Pasted Text.txt', content: dataUrl }]);
+        const newProjectId = await startAnalysis([{ path: 'Pasted Text.txt', content: dataUrl }], isPublic);
 
         toast({ title: 'Analysis Started', description: 'The document is being analyzed. You can see progress on the main page.' });
         if (projectId) { 
@@ -70,7 +73,7 @@ export function ChatInterface() {
       try {
           if (!projectId || !isChatProject) {
               // This is the path for the FIRST message. It creates the project and gets the first AI response.
-              await startChat(userMessage);
+              await startChat(userMessage, isPublic);
           } else {
               // This is a subsequent message in an existing chat.
               await addChatMessage(projectId, userMessage);
@@ -197,6 +200,17 @@ export function ChatInterface() {
             Send
           </Button>
         </div>
+         {!projectId && (
+            <div className="flex items-center space-x-2">
+                <Switch 
+                    id="chat-privacy-switch" 
+                    checked={!isPublic}
+                    onCheckedChange={(checked) => setIsPublic(!checked)}
+                    disabled={isResponding || isLoading}
+                />
+                <Label htmlFor="chat-privacy-switch">Make Project Private</Label>
+            </div>
+        )}
       </CardContent>
     </Card>
   );
