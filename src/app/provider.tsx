@@ -5,7 +5,7 @@ import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest
 import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/suggest-frontend-changes-from-analysis';
 import { AppStateContext, HistoryItem } from '@/hooks/use-app-state';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useFirebase, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirebase, useMemoFirebase, errorEmitter, FirestorePermissionError, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, collectionGroup, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
@@ -248,16 +248,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const projectRef = querySnapshot.docs[0].ref;
 
     const newHistoryItem = { id: Date.now(), message, timestamp: new Date() };
+    const updatedHistory = [...history, newHistoryItem];
+    
+    setHistory(updatedHistory);
+    updateDocumentNonBlocking(projectRef, { history: updatedHistory });
 
-    setHistory(currentHistory => [...currentHistory, newHistoryItem]);
-
-    try {
-        await updateDoc(projectRef, { 
-            history: [...history, newHistoryItem]
-        });
-    } catch (e) {
-        console.error("Failed to update history in Firestore:", e);
-    }
   }, [user, firestore, projectId, history]);
 
 
@@ -295,12 +290,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setDetailedStatus('Generating project name...');
         await addHistory('Generating project name...');
         const nameResult = await generateProjectName({ fileContents: codeSnippets });
-        await updateDoc(projectRef, { name: nameResult.projectName });
+        updateDocumentNonBlocking(projectRef, { name: nameResult.projectName });
 
         setDetailedStatus('Generating analysis report...');
         await addHistory('Generating analysis report...');
         const reportResult = await generateInitialAnalysisReport({ fileStructure, codeSnippets });
-        await updateDoc(projectRef, { analysisReport: reportResult.report });
+        updateDocumentNonBlocking(projectRef, { analysisReport: reportResult.report });
         
         await addHistory('Analysis complete. You can now generate suggestions.');
       } catch (aiError: any) {
@@ -342,18 +337,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       chatHistory: [initialMessage, aiResponse]
     };
     
-    // Non-blocking write with contextual error handling
-    setDoc(projectRef, initialChatProject)
-      .catch(serverError => {
-        const permissionError = new FirestorePermissionError({
-            path: projectRef.path,
-            operation: 'create',
-            requestResourceData: initialChatProject,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        setDetailedStatus(null);
-        clearState(true);
-      });
+    setDocumentNonBlocking(projectRef, initialChatProject);
 
     setProjectId(newProjectId, projectRef.path);
     return newProjectId;
@@ -374,8 +358,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updatedHistory = [...(chatHistory || []), message];
 
     setChatHistory(updatedHistory);
+    updateDocumentNonBlocking(projectRef, { chatHistory: updatedHistory });
 
-    await updateDoc(projectRef, { chatHistory: updatedHistory });
   }, [firestore, chatHistory]);
 
   const setFrontendSuggestions = useCallback(async (suggestions: SuggestFrontendChangesFromAnalysisOutput | null) => {
@@ -386,7 +370,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const projectRef = querySnapshot.docs[0].ref;
 
       _setFrontendSuggestions(suggestions);
-      await updateDoc(projectRef, { frontendSuggestions: suggestions });
+      updateDocumentNonBlocking(projectRef, { frontendSuggestions: suggestions });
   }, [projectId, firestore]);
 
   const setBackendSuggestions = useCallback(async (suggestions: SuggestBackendChangesFromAnalysisOutput | null) => {
@@ -397,7 +381,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const projectRef = querySnapshot.docs[0].ref;
 
       _setBackendSuggestions(suggestions);
-      await updateDoc(projectRef, { backendSuggestions: suggestions });
+      updateDocumentNonBlocking(projectRef, { backendSuggestions: suggestions });
   }, [projectId, firestore]);
 
   const value = {
@@ -429,5 +413,4 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 
-    
     
