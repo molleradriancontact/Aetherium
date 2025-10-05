@@ -4,9 +4,9 @@
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase, useMemoFirebase } from "@/firebase";
-import { ArchitectProject } from "@/app/provider";
+import { ArchitectProject, CollaboratorDetails } from "@/app/provider";
 import { useAppState } from "@/hooks/use-app-state";
-import { Globe, LayoutGrid, Loader2, Lock, Trash2, PlusCircle } from "lucide-react";
+import { Globe, LayoutGrid, Loader2, Lock, Trash2, PlusCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { collection, query, orderBy, getDocs, doc, getDoc } from "firebase/firestore";
 import { useTransition, useState, useEffect } from "react";
@@ -25,6 +25,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface UserProfile {
     projects?: { projectId: string; projectPath: string }[];
@@ -166,11 +168,33 @@ export default function ProjectsPage() {
                             Created on {project.createdAt ? format(new Date(project.createdAt.seconds * 1000), 'MMM d, yyyy') : 'Date unknown'}
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="flex-grow">
+                    <CardContent className="flex-grow space-y-4">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             {project.isPublic ? <Globe className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                             <span>{project.isPublic ? 'Public' : 'Private'}</span>
                         </div>
+                         {project.collaboratorDetails && project.collaboratorDetails.length > 0 && (
+                            <div className="flex items-center gap-2">
+                                <Users className="h-4 w-4 text-muted-foreground" />
+                                <div className="flex -space-x-2 overflow-hidden">
+                                     <TooltipProvider>
+                                        {project.collaboratorDetails.map((c: CollaboratorDetails) => (
+                                            <Tooltip key={c.id}>
+                                                <TooltipTrigger asChild>
+                                                    <Avatar className="h-6 w-6 border-2 border-background">
+                                                        <AvatarImage src={c.photoURL ?? undefined} alt={c.username} />
+                                                        <AvatarFallback>{c.username?.[0].toUpperCase()}</AvatarFallback>
+                                                    </Avatar>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{c.username}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        ))}
+                                    </TooltipProvider>
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                     <CardContent className="flex items-center justify-between gap-2">
                          <Button onClick={() => handleSelectProject(project)}>Open Project</Button>
@@ -206,5 +230,3 @@ export default function ProjectsPage() {
     </div>
   );
 }
-
-    
