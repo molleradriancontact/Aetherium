@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest-backend-changes-from-analysis';
@@ -278,6 +279,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isPublic: isPublic,
       uploadedFiles: files,
       history: [{ id: Date.now(), message: 'Project created.', timestamp: new Date() }],
+      collaborators: [user.uid],
+      collaboratorDetails: [{
+        id: user.uid,
+        email: user.email!,
+        username: user.displayName!,
+        photoURL: user.photoURL
+      }]
     };
 
     await setDoc(projectRef, initialProject);
@@ -335,7 +343,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       createdAt: serverTimestamp(),
       projectType: 'chat',
       isPublic: isPublic,
-      chatHistory: [initialMessage, aiResponse]
+      chatHistory: [initialMessage, aiResponse],
+      collaborators: [user.uid],
+      collaboratorDetails: [{
+        id: user.uid,
+        email: user.email!,
+        username: user.displayName!,
+        photoURL: user.photoURL
+      }]
     };
     
     setDocumentNonBlocking(projectRef, initialChatProject);
