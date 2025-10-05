@@ -78,13 +78,13 @@ export default function StudioPage() {
     <div className="space-y-8">
       <PageHeader
         title="Media Studio"
-        subtitle="Use AI to edit and transform your audio and video content."
+        subtitle="Use AI to edit and transform your video content for marketing or creative projects."
       />
 
       <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><WandSparkles /> AI Video Modifier</CardTitle>
-            <CardDescription>Upload a video and use a text prompt to modify it.</CardDescription>
+            <CardDescription>Upload a video and use a text prompt to modify its style, color, or add effects.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -104,7 +104,7 @@ export default function StudioPage() {
                     )}
                 </div>
 
-                <div className="aspect-video bg-muted flex items-center justify-center rounded-lg">
+                <div className="aspect-video bg-muted flex items-center justify-center rounded-lg relative">
                     {isModifying ? (
                         <div className="text-center text-muted-foreground">
                             <Loader2 className="h-10 w-10 mx-auto text-primary animate-spin" />
@@ -115,7 +115,10 @@ export default function StudioPage() {
                             Your browser does not support the video tag.
                         </video>
                     ) : (
-                        <Video className="h-16 w-16 text-muted-foreground" />
+                       <div className="text-center text-muted-foreground">
+                            <Video className="h-16 w-16 mx-auto" />
+                            <p className="mt-2 text-sm">Your modified video will appear here.</p>
+                       </div>
                     )}
                 </div>
             </div>

@@ -64,7 +64,7 @@ export default function GenerativeMediaPage() {
     <div className="space-y-8">
       <PageHeader
         title="Generative Media"
-        subtitle="Create images and videos from text prompts using generative AI."
+        subtitle="Create images and videos from text prompts for your marketing and content needs."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -72,7 +72,7 @@ export default function GenerativeMediaPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><ImageIcon /> Image Generation</CardTitle>
-            <CardDescription>Generate a unique image based on your text prompt.</CardDescription>
+            <CardDescription>Generate unique images for blog posts, social media, or ad creatives.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -93,7 +93,10 @@ export default function GenerativeMediaPage() {
               ) : generatedImage ? (
                 <Image src={generatedImage} alt="Generated image" fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="rounded-md object-contain" />
               ) : (
-                <ImageIcon className="h-16 w-16 text-muted-foreground" />
+                <div className="text-center text-muted-foreground">
+                    <ImageIcon className="h-16 w-16 mx-auto" />
+                    <p className="mt-2 text-sm">Your generated image will appear here.</p>
+                </div>
               )}
             </Card>
           </CardContent>
@@ -103,7 +106,7 @@ export default function GenerativeMediaPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Video /> Video Generation</CardTitle>
-            <CardDescription>Create a short video clip from your text prompt.</CardDescription>
+            <CardDescription>Create short promotional clips or feature demos from text.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -129,7 +132,10 @@ export default function GenerativeMediaPage() {
                     Your browser does not support the video tag.
                 </video>
               ) : (
-                <Video className="h-16 w-16 text-muted-foreground" />
+                <div className="text-center text-muted-foreground">
+                    <Video className="h-16 w-16 mx-auto" />
+                     <p className="mt-2 text-sm">Your generated video will appear here.</p>
+                </div>
               )}
             </Card>
           </CardContent>
