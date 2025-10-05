@@ -5,7 +5,7 @@ import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest
 import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/suggest-frontend-changes-from-analysis';
 import { AppStateContext, HistoryItem } from '@/hooks/use-app-state';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useFirebase, useMemoFirebase } from '@/firebase';
+import { useFirebase, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, collectionGroup, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
@@ -315,9 +315,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return newProjectId;
   }, [user, firestore, clearState, addHistory]);
 
-  const startChat = useCallback(async (initialMessage: Message, isPublic: boolean = false) => {
-    if (!user || !firestore) throw new Error("User or Firestore not available.");
-    
+  const startChat = useCallback(async (initialMessage: Message, isPublic: boolean = false): Promise<string> => {
+    if (!user || !firestore) {
+      throw new Error("User or Firestore not available.");
+    }
+
     setDetailedStatus("Starting new chat...");
     clearState(false);
 
@@ -325,38 +327,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const projectRef = doc(collection(firestore, collectionPath));
     const newProjectId = projectRef.id;
 
+    let aiResponse: Message;
+
     try {
-        // Step 1: Immediately get the AI's response to the initial message
-        setDetailedStatus("Thinking...");
-        const result = await chat([initialMessage], initialMessage.content);
-        const aiResponse: Message = { role: 'model', content: result.content };
-        
-        // Step 2: Create the project with the full initial conversation history
-        setDetailedStatus("Creating chat project...");
-        const initialChatProject: ArchitectProject = {
-            id: newProjectId,
-            userId: user.uid,
-            name: initialMessage.content.substring(0, 30),
-            createdAt: serverTimestamp(),
-            projectType: 'chat',
-            isPublic: isPublic,
-            chatHistory: [initialMessage, aiResponse]
-        };
-
-        await setDoc(projectRef, initialChatProject);
-
-        // Step 3: Set the project ID in the state, which triggers the useEffect to load it
-        setProjectId(newProjectId, projectRef.path);
-        
-        return newProjectId;
-
+      setDetailedStatus("Thinking...");
+      const result = await chat([initialMessage], initialMessage.content);
+      aiResponse = { role: 'model', content: result.content };
     } catch (error) {
-        console.error("Failed to start chat:", error);
-        setDetailedStatus(null);
-        clearState(true); // Go home on failure
-        throw error; // Re-throw for the UI to handle
+      console.error("AI chat call failed:", error);
+      setDetailedStatus(null);
+      clearState(true);
+      throw error; // Re-throw for the UI to handle
     }
-}, [user, firestore, clearState]);
+
+    setDetailedStatus("Creating chat project...");
+    const initialChatProject: ArchitectProject = {
+      id: newProjectId,
+      userId: user.uid,
+      name: initialMessage.content.substring(0, 30),
+      createdAt: serverTimestamp(),
+      projectType: 'chat',
+      isPublic: isPublic,
+      chatHistory: [initialMessage, aiResponse]
+    };
+
+    return new Promise((resolve, reject) => {
+        setDoc(projectRef, initialChatProject)
+        .then(() => {
+            setProjectId(newProjectId, projectRef.path);
+            resolve(newProjectId);
+        })
+        .catch(serverError => {
+            const permissionError = new FirestorePermissionError({
+                path: projectRef.path,
+                operation: 'create',
+                requestResourceData: initialChatProject,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+
+            setDetailedStatus(null);
+            clearState(true);
+            reject(permissionError);
+        });
+    });
+  }, [user, firestore, clearState]);
 
   const addChatMessage = useCallback(async (projectId: string, message: Message) => {
     if (!firestore) return;
@@ -427,7 +441,5 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
-
-    
 
     
