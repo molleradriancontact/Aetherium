@@ -102,30 +102,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     }
   
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
       if (firebaseUser) {
-        // User is signed in.
-        setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
         sessionStorage.removeItem('manual_logout');
-      } else {
-        // User is signed out.
-        const manualLogout = sessionStorage.getItem('manual_logout');
-        if (manualLogout === 'true') {
-          // If the user manually logged out, do not sign them in anonymously.
-          // The flag will be cleared on the next manual sign-in.
-          setUserAuthState({ user: null, isUserLoading: false, userError: null });
-        } else {
-          // If it's not a manual logout (e.g., initial load, session expired),
-          // attempt to sign in anonymously.
-          signInAnonymously(auth).catch((error) => {
-            console.error("FirebaseProvider: Anonymous sign-in failed.", error);
-            toast({
-              title: "Authentication Failed",
-              description: "Could not sign you in anonymously. Some features might not work.",
-              variant: "destructive"
-            });
-            setUserAuthState({ user: null, isUserLoading: false, userError: error });
-          });
-        }
       }
     }, (error) => {
       console.error("FirebaseProvider: onAuthStateChanged error:", error);

@@ -5,8 +5,6 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAdminApp, getAdminAuth } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
-import { Auth, getAuth } from 'firebase/auth';
-import { getSdks, initializeFirebase } from '@/firebase';
 
 type GeneratedFile = {
     path: string;
@@ -59,23 +57,26 @@ export async function deleteProject(projectId: string) {
     }
 }
 
-export async function addCollaborator(projectId: string, collaboratorEmail: string) {
-    if (!projectId || !collaboratorEmail) {
-        throw new Error("Project ID and Collaborator Email are required.");
-    }
-    
-    const db = getFirestore(getAdminApp());
-    const auth = getAdminAuth(getAdminApp());
-
+async function getUserIdFromToken() {
     const headersList = headers();
     const authorization = headersList.get('Authorization');
     if (!authorization) {
         throw new Error("Unauthorized: No user token provided.");
     }
     const token = authorization.split('Bearer ')[1];
+    const auth = getAdminAuth();
     const decodedToken = await auth.verifyIdToken(token);
-    const invitingUserId = decodedToken.uid;
+    return decodedToken.uid;
+}
 
+export async function addCollaborator(projectId: string, collaboratorEmail: string) {
+    if (!projectId || !collaboratorEmail) {
+        throw new Error("Project ID and Collaborator Email are required.");
+    }
+    
+    const db = getFirestore(getAdminApp());
+    const auth = getAdminAuth();
+    const invitingUserId = await getUserIdFromToken();
 
     try {
         // 1. Find the user being invited
@@ -163,18 +164,6 @@ export async function removeCollaborator(projectId: string, collaboratorId: stri
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         throw new Error(errorMessage);
     }
-}
-
-async function getUserIdFromToken() {
-    const headersList = headers();
-    const authorization = headersList.get('Authorization');
-    if (!authorization) {
-        throw new Error("Unauthorized: No user token provided.");
-    }
-    const token = authorization.split('Bearer ')[1];
-    const auth = getAdminAuth(getAdminApp());
-    const decodedToken = await auth.verifyIdToken(token);
-    return decodedToken.uid;
 }
 
 export async function acceptInvitation(invitationId: string) {
