@@ -61,10 +61,8 @@ Based on that report and the user's questions, provide clear, helpful, and conci
       model: googleAI.model('gemini-1.5-flash'),
       prompt: messages.at(-1)?.content ?? '',
       history: messages.slice(0, -1),
-      config: {
-        systemInstruction: systemInstruction,
-        tools: [deepResearchTool]
-      }
+      system: systemInstruction,
+      tools: [deepResearchTool]
     });
 
     const content = llmResponse.text ?? '';

@@ -40,10 +40,8 @@ const chatFlow = ai.defineFlow(
       model: googleAI.model('gemini-1.5-flash'),
       prompt: prompt,
       history: history,
-      config: {
-        tools: [saveDocumentTool],
-        systemInstruction: systemInstruction,
-      }
+      tools: [saveDocumentTool],
+      system: systemInstruction,
     });
 
     const choice = llmResponse.choices[0];
