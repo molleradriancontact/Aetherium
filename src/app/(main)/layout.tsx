@@ -14,6 +14,7 @@ import {
   SidebarProvider,
   SidebarInset,
   SidebarFooter,
+  SidebarContent,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -120,22 +121,24 @@ function MainLayout({ children }: { children: React.ReactNode }) {
            </div>
           <ProjectSwitcher />
         </SidebarHeader>
-        <SidebarMenu className="p-2">
-          {navItems.map(item => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === item.href}
-                tooltip={{ children: item.label }}
-              >
-                <Link href={item.href}>
-                  <item.icon />
-                  <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
+        <SidebarContent>
+            <SidebarMenu className="p-2">
+            {navItems.map(item => (
+                <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href}
+                    tooltip={{ children: item.label }}
+                >
+                    <Link href={item.href}>
+                    <item.icon />
+                    <span>{item.label}</span>
+                    </Link>
+                </SidebarMenuButton>
+                </SidebarMenuItem>
+            ))}
+            </SidebarMenu>
+        </SidebarContent>
         <SidebarFooter>
             <Link href="/account" className="flex items-center gap-3 p-4 hover:bg-sidebar-accent rounded-md">
                 <Avatar className="h-8 w-8">
