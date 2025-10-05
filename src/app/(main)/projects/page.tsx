@@ -35,14 +35,13 @@ export default function ProjectsPage() {
   const [isDeleting, startDeleting] = useTransition();
 
   const userProjectsQuery = useMemoFirebase(() => {
-    // The layout guarantees user is loaded, so we can safely use user.uid
-    if (!user) return null;
+    if (!user?.uid || !firestore) return null;
     return query(
       collectionGroup(firestore, 'projects'),
       where('collaborators', 'array-contains', user.uid),
       orderBy('createdAt', 'desc')
     );
-  }, [user, firestore]);
+  }, [user?.uid, firestore]);
 
   const { data: allProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject & {path: string}>(userProjectsQuery);
 
