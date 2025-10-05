@@ -344,10 +344,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     // Non-blocking write with contextual error handling
     setDoc(projectRef, initialChatProject)
-      .then(() => {
-        setProjectId(newProjectId, projectRef.path);
-        // Resolve with the new project ID
-      })
       .catch(serverError => {
         const permissionError = new FirestorePermissionError({
             path: projectRef.path,
@@ -355,13 +351,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             requestResourceData: initialChatProject,
         });
         errorEmitter.emit('permission-error', permissionError);
-
         setDetailedStatus(null);
         clearState(true);
-        // Reject the promise to signal failure
       });
 
-    // We can optimistically return the projectId. The UI will react to state changes.
+    setProjectId(newProjectId, projectRef.path);
     return newProjectId;
   }, [user, firestore, clearState]);
 
@@ -398,7 +392,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setBackendSuggestions = useCallback(async (suggestions: SuggestBackendChangesFromAnalysisOutput | null) => {
       if (!projectId || !firestore) return;
       const projectQuery = query(collectionGroup(firestore, 'projects'), where('id', '==', projectId));
-      const querySnapshot = await getDocs(projectQuery);
+      const querySnapshot = await getDocs(querySnapshot);
       if (querySnapshot.empty) return;
       const projectRef = querySnapshot.docs[0].ref;
 
@@ -435,4 +429,5 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 
+    
     
