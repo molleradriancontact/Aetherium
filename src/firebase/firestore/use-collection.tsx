@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -57,25 +58,18 @@ export function useCollection<T = any>(
   type StateDataType = ResultItemType[] | null;
 
   const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // Start as loading if query can be null
+  const [isLoading, setIsLoading] = useState<boolean>(true); 
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // If the query is not ready, set loading and wait.
+    // If the query is not ready, set a non-loading, non-error, null-data state and wait.
     if (!memoizedTargetRefOrQuery) {
       setData(null);
-      setIsLoading(true);
+      setIsLoading(false);
       setError(null);
       return;
     }
     
-    // Check for memoization only if the query is provided
-    if (memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-      // Throwing an error is aggressive but correct. It prevents subtle bugs.
-      // A console.error might be missed.
-      throw new Error('The query passed to useCollection must be memoized with useMemoFirebase to prevent infinite re-renders. See docs for usage.');
-    }
-
     setIsLoading(true);
     setError(null);
 
