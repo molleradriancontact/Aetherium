@@ -3,18 +3,27 @@
 import { ai } from '@/ai/genkit';
 import 'dotenv/config';
 
-// The following imports register the flows with the AI object.
-import './flows/generate-initial-analysis-report.ts';
-import './flows/suggest-backend-changes-from-analysis.ts';
-import './flows/suggest-frontend-changes-from-analysis.ts';
-import './flows/suggest-backend-modifications.ts';
-import './flows/suggest-frontend-modifications.ts';
-import './flows/generate-project-name.ts';
-import './flows/hello.ts';
-import './flows/chat.ts';
-import './flows/project-chat.ts';
-import './flows/synthesize-debates.ts';
-import './flows/generate-audio-overview.ts';
-import './flows/generate-image.ts';
-import './flows/generate-video.ts';
-import './flows/modify-video-flow.ts';
+// This check prevents the flows from being re-registered during hot-reloading in development.
+if (process.env.NODE_ENV === 'development' && (global as any).genkitFlowsRegistered) {
+  // Flows are already registered, do nothing.
+} else {
+  // The following imports register the flows with the AI object.
+  require('./flows/generate-initial-analysis-report.ts');
+  require('./flows/suggest-backend-changes-from-analysis.ts');
+  require('./flows/suggest-frontend-changes-from-analysis.ts');
+  require('./flows/suggest-backend-modifications.ts');
+  require('./flows/suggest-frontend-modifications.ts');
+  require('./flows/generate-project-name.ts');
+  require('./flows/hello.ts');
+  require('./flows/chat.ts');
+  require('./flows/project-chat.ts');
+  require('./flows/synthesize-debates.ts');
+  require('./flows/generate-audio-overview.ts');
+  require('./flows/generate-image.ts');
+  require('./flows/generate-video.ts');
+  require('./flows/modify-video-flow.ts');
+
+  if (process.env.NODE_ENV === 'development') {
+    (global as any).genkitFlowsRegistered = true;
+  }
+}
