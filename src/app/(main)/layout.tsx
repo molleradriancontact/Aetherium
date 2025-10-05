@@ -31,6 +31,7 @@ import {
   Search,
   Film,
   Clapperboard,
+  BookOpen,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
@@ -52,6 +53,7 @@ const navItems = [
   { href: '/generative-media', label: 'Generative Media', icon: Film },
   { href: '/studio', label: 'Studio', icon: Clapperboard },
   { href: '/history', label: 'History', icon: GitBranch },
+  { href: '/academy/about', label: 'About', icon: BookOpen },
   { href: '/account', label: 'Account', icon: User },
 ];
 
