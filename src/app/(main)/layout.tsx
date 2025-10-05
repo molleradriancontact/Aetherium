@@ -96,9 +96,10 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     clearState(true); // Force clear and navigate to home
   }
   
+  // This is the definitive "auth wall". No children will render until authentication is complete.
   if (isUserLoading || !user) {
     return (
-       <div className="flex h-screen w-full items-center justify-center">
+       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -152,7 +153,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <main className="min-h-[calc(100vh-2rem)] flex-1 p-4 md:p-8">
-            {!isUserLoading && user ? children : null}
+            {children}
         </main>
       </SidebarInset>
     </SidebarProvider>

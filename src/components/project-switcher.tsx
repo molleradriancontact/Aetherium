@@ -17,13 +17,14 @@ export function ProjectSwitcher() {
   const router = useRouter();
 
   const userProjectsQuery = useMemoFirebase(() => {
-    if (!user?.uid) return null;
+    // The layout guarantees user is loaded, so we can safely use user.uid
+    if (!user) return null;
     return query(
       collectionGroup(firestore, 'projects'),
       where('collaborators', 'array-contains', user.uid),
       orderBy('createdAt', 'desc')
     );
-  }, [user?.uid, firestore]);
+  }, [user, firestore]);
 
   const { data: allProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject & {path: string}>(userProjectsQuery);
 
