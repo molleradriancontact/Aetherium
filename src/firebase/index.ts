@@ -3,7 +3,7 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth';
+import { getAuth, setPersistence, inMemoryPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { DependencyList, useMemo } from 'react';
 
@@ -22,7 +22,7 @@ function ensureFirebaseInitialized() {
   const auth = getAuth(app);
   // Do not await this promise. It's a non-blocking call.
   // The onAuthStateChanged listener will handle the user state once persistence is resolved.
-  setPersistence(auth, browserSessionPersistence);
+  setPersistence(auth, inMemoryPersistence);
   appInitialized = true;
 }
 
