@@ -35,7 +35,7 @@ export default function ProjectsPage() {
   const [isDeleting, startDeleting] = useTransition();
 
   const userProjectsQuery = useMemoFirebase(() => {
-    if (!user?.uid || !firestore) return null;
+    if (!user?.uid) return null;
     return query(
       collectionGroup(firestore, 'projects'),
       where('collaborators', 'array-contains', user.uid),

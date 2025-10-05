@@ -17,7 +17,7 @@ export function ProjectSwitcher() {
   const router = useRouter();
 
   const userProjectsQuery = useMemoFirebase(() => {
-    if (!user?.uid || !firestore) return null;
+    if (!user?.uid) return null;
     return query(
       collectionGroup(firestore, 'projects'),
       where('collaborators', 'array-contains', user.uid),
