@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { SuggestBackendChangesFromAnalysisOutput } from '@/ai/flows/suggest-backend-changes-from-analysis';
@@ -243,9 +244,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const newHistoryItem = { id: Date.now(), message, timestamp: new Date() };
     
     // We don't need to set local state `setHistory` as onSnapshot will handle it.
-    updateDocumentNonBlocking(projectRef, { history: [...history, newHistoryItem] });
+    updateDocumentNonBlocking(projectRef, { history: arrayUnion(newHistoryItem) });
 
-  }, [user, firestore, projectId, history]);
+  }, [user, firestore, projectId]);
 
 
   const startAnalysis = useCallback(async (files: UploadedFile[], isPublic: boolean = true) => {
@@ -316,54 +317,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return newProjectId;
   }, [user, firestore, clearState, addHistory]);
-
-  const startChat = useCallback(async (initialMessage: Message, isPublic: boolean = true): Promise<string> => {
-    if (!user || !firestore) {
-      throw new Error("User or Firestore not available.");
-    }
   
-    setDetailedStatus("Starting new chat...");
-    clearState(false);
-  
-    const collectionPath = 'projects';
-    const projectRef = doc(collection(firestore, collectionPath));
-    const newProjectId = projectRef.id;
-  
-    const userProfileRef = doc(firestore, 'users', user.uid);
-
-    setDetailedStatus("Thinking...");
-    const result = await chat([initialMessage], initialMessage.content);
-    const aiResponse: Message = { role: 'model', content: result.content };
-    
-    setDetailedStatus("Creating chat project...");
-    const initialChatProject: ArchitectProject = {
-      id: newProjectId,
-      userId: user.uid,
-      name: initialMessage.content.substring(0, 30),
-      createdAt: serverTimestamp(),
-      projectType: 'chat',
-      isPublic: isPublic,
-      chatHistory: [initialMessage, aiResponse],
-      collaborators: [user.uid],
-      collaboratorDetails: [{
-        id: user.uid,
-        email: user.email!,
-        username: user.displayName!,
-        photoURL: user.photoURL
-      }]
-    };
-    
-    const batch = writeBatch(firestore);
-    batch.set(projectRef, initialChatProject);
-    batch.update(userProfileRef, {
-        projects: arrayUnion({ projectId: newProjectId, projectPath: projectRef.path })
-    });
-    await batch.commit();
-
-    setProjectId(newProjectId, projectRef.path);
-    return newProjectId;
-  }, [user, firestore, clearState]);
-
   const addChatMessage = useCallback(async (projectId: string, message: Message) => {
     if (!firestore) return;
     
@@ -372,11 +326,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const projectRef = doc(firestore, projectPath);
     
-    const updatedHistory = [...(chatHistory || []), message];
+    updateDocumentNonBlocking(projectRef, { chatHistory: arrayUnion(message) });
 
-    updateDocumentNonBlocking(projectRef, { chatHistory: updatedHistory });
+  }, [firestore]);
 
-  }, [firestore, chatHistory]);
+  const startChat = useCallback(async (initialMessage: Message, isPublic: boolean = true): Promise<string> => {
+    if (!user || !firestore) {
+        throw new Error("User or Firestore not available.");
+    }
+
+    setDetailedStatus("Creating chat project...");
+    clearState(false);
+
+    const collectionPath = 'projects';
+    const projectRef = doc(collection(firestore, collectionPath));
+    const newProjectId = projectRef.id;
+
+    const userProfileRef = doc(firestore, 'users', user.uid);
+
+    const initialChatProject: ArchitectProject = {
+        id: newProjectId,
+        userId: user.uid,
+        name: initialMessage.content.substring(0, 30),
+        createdAt: serverTimestamp(),
+        projectType: 'chat',
+        isPublic: isPublic,
+        chatHistory: [initialMessage], // Start with just the user's message
+        collaborators: [user.uid],
+        collaboratorDetails: [{
+            id: user.uid,
+            email: user.email!,
+            username: user.displayName!,
+            photoURL: user.photoURL
+        }]
+    };
+
+    const batch = writeBatch(firestore);
+    batch.set(projectRef, initialChatProject);
+    batch.update(userProfileRef, {
+        projects: arrayUnion({ projectId: newProjectId, projectPath: projectRef.path })
+    });
+    await batch.commit();
+
+    setProjectId(newProjectId, projectRef.path);
+    setDetailedStatus(null);
+    
+    // Now, with the project created and the ID set, get the AI response
+    (async () => {
+        try {
+            setDetailedStatus("AI is thinking...");
+            const result = await chat([initialMessage], initialMessage.content);
+            const aiResponse: Message = { role: 'model', content: result.content };
+            
+            // This will now update the existing document
+            await addChatMessage(newProjectId, aiResponse);
+        } catch (error) {
+            console.error('Initial chat response error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+            const errorResponse: Message = { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` };
+            await addChatMessage(newProjectId, errorResponse);
+        } finally {
+            setDetailedStatus(null);
+        }
+    })();
+
+    return newProjectId;
+  }, [user, firestore, clearState, addChatMessage]);
 
   const setFrontendSuggestions = useCallback(async (suggestions: SuggestFrontendChangesFromAnalysisOutput | null) => {
       if (!projectId || !firestore) return;
