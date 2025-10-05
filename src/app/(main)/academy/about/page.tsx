@@ -1,7 +1,7 @@
 
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Code, Presentation, Rocket } from "lucide-react";
+import { Briefcase, Code, Presentation, Rocket, MessageSquare, FileUp, FolderKanban, Search, WandSparkles, Bot, Image as ImageIcon, Video } from "lucide-react";
 
 const personas = [
   {
@@ -26,12 +26,56 @@ const personas = [
   }
 ];
 
+const accessPoints = [
+    {
+        icon: MessageSquare,
+        title: "AI Assistant Chat (/prototype)",
+        description: "Brainstorm ideas and flesh out concepts. This initial conversation can be saved as a document to kickstart a full analysis project."
+    },
+    {
+        icon: FileUp,
+        title: "File Upload & Analysis (/prototype)",
+        description: "Provide the AI with data by uploading documents, code, or design files. The AI performs a deep analysis and generates a comprehensive report."
+    },
+    {
+        icon: FolderKanban,
+        title: "Project Chat (Homepage)",
+        description: "Once a project is active, ask the AI context-aware questions about the analysis report and codebase on the main dashboard."
+    },
+    {
+        icon: Search,
+        title: "Deep Research Chat (/research)",
+        description: "A standalone tool for general-purpose research. The AI uses web search to answer any question, independent of a specific project."
+    },
+    {
+        icon: Bot,
+        title: "Suggestion Generation (/frontend & /backend)",
+        description: "Command the AI to analyze the project report and propose high-level architectural and structural changes for the frontend or backend."
+    },
+    {
+        icon: WandSparkles,
+        title: "Code Prototyping (/frontend & /backend)",
+        description: "Instruct the AI to write and modify actual application files based on its analysis, generating a tangible code prototype you can review."
+    },
+    {
+        icon: ImageIcon,
+        title: "Generative Media Creation (/generative-media)",
+        description: "Use text prompts to generate unique images and videos with AI, perfect for creating marketing assets, blog headers, or social media content."
+    },
+    {
+        icon: Video,
+        title: "Media Studio Modification (/studio)",
+        description: "Upload an existing video and provide the AI with text prompts to modify its style, color, or add effects, repurposing content with ease."
+    }
+];
+
+
 export default function AboutPage() {
   return (
     <div className="space-y-8">
       <PageHeader 
         title="About Aetherium"
-        subtitle="Understanding the users we are built for."
+        subtitle="Understanding the users we are built for and how our AI works."
       />
 
       <Card>
@@ -54,6 +98,34 @@ export default function AboutPage() {
                 <CardContent className="flex-grow">
                   <p className="text-sm text-muted-foreground">
                     {persona.description}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Interaction Points</CardTitle>
+          <CardDescription>
+            The application provides several distinct access points to interact with the Gemini-powered AI, each tailored for a specific task.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {accessPoints.map((point, index) => (
+              <Card key={index} className="flex flex-col">
+                <CardHeader>
+                    <div className="flex items-center gap-4">
+                        <point.icon className="h-8 w-8 text-primary flex-shrink-0" />
+                        <CardTitle className="text-base">{point.title}</CardTitle>
+                    </div>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  <p className="text-sm text-muted-foreground">
+                    {point.description}
                   </p>
                 </CardContent>
               </Card>
