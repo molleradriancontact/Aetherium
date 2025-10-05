@@ -152,7 +152,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <main className="min-h-[calc(100vh-2rem)] flex-1 p-4 md:p-8">
-            {children}
+            {!isUserLoading && user ? children : null}
         </main>
       </SidebarInset>
     </SidebarProvider>
