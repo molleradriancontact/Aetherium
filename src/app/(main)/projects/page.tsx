@@ -1,4 +1,3 @@
-
 'use client';
 
 import { PageHeader } from "@/components/page-header";
@@ -9,7 +8,7 @@ import { useAppState } from "@/hooks/use-app-state";
 import { Globe, LayoutGrid, Loader2, Lock, Trash2, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { collection, query, orderBy, collectionGroup, where } from "firebase/firestore";
-import { useTransition, useMemo } from "react";
+import { useTransition } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { deleteProject } from "@/app/actions";
 import { format } from "date-fns";
@@ -28,7 +27,7 @@ import {
 import { useCollection } from "@/firebase/firestore/use-collection";
 
 export default function ProjectsPage() {
-  const { user, firestore } = useFirebase();
+  const { user, firestore, isUserLoading } = useFirebase();
   const { isHydrated, setProjectId, clearState, projectId: activeProjectId } = useAppState();
   const { toast } = useToast();
   const router = useRouter();
@@ -45,7 +44,7 @@ export default function ProjectsPage() {
 
   const { data: allProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject & {path: string}>(userProjectsQuery);
 
-  const isLoading = isLoadingProjects;
+  const isLoading = isUserLoading || isLoadingProjects;
 
   const handleDelete = (projectId: string) => {
     if (!user) return;
