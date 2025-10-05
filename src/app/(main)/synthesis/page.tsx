@@ -7,7 +7,7 @@ import { useFirebase, useMemoFirebase } from "@/firebase";
 import { ArchitectProject } from "@/app/provider";
 import { BrainCircuit, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, orderBy } from "firebase/firestore";
 import { useCollection } from "@/firebase/firestore/use-collection";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useTransition } from "react";
@@ -24,10 +24,18 @@ export default function SynthesisPage() {
 
   const publicProjectsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'projects'), where("isPublic", "==", true));
+    // Query for public projects that have an analysis report
+    return query(
+        collection(firestore, 'projects'), 
+        where("isPublic", "==", true),
+        orderBy("createdAt", "desc")
+    );
   }, [firestore]);
 
   const { data: publicProjects, isLoading } = useCollection<ArchitectProject>(publicProjectsQuery);
+  
+  // Filter projects client-side to ensure they have an analysis report to contribute
+  const usableProjects = publicProjects?.filter(p => p.analysisReport && p.analysisReport.trim() !== "");
 
   const handleSelectProject = (project: ArchitectProject) => {
     setSelectedProjects(prev =>
@@ -92,12 +100,12 @@ export default function SynthesisPage() {
           <Card>
             <CardHeader>
               <CardTitle>Select Public Projects</CardTitle>
-              <CardDescription>Choose two or more projects to synthesize.</CardDescription>
+              <CardDescription>Choose two or more projects with analysis reports to synthesize.</CardDescription>
             </CardHeader>
             <CardContent>
-              {publicProjects && publicProjects.length > 0 ? (
+              {usableProjects && usableProjects.length > 0 ? (
                 <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {publicProjects.map(project => (
+                  {usableProjects.map(project => (
                     <div key={project.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`project-${project.id}`}
@@ -111,7 +119,7 @@ export default function SynthesisPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No public projects found.</p>
+                <p className="text-sm text-muted-foreground">No public projects with analysis reports found.</p>
               )}
             </CardContent>
           </Card>
@@ -123,7 +131,7 @@ export default function SynthesisPage() {
 
         <div className="lg:col-span-2">
           {isSynthesizing && (
-            <Card className="flex h-96 items-center justify-center">
+            <Card className="flex min-h-[36rem] items-center justify-center">
               <div className="text-center">
                 <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
                 <p className="mt-4 text-muted-foreground">AI experts are debating...</p>
@@ -132,12 +140,12 @@ export default function SynthesisPage() {
           )}
 
           {!synthesisResult && !isSynthesizing && (
-             <Card className="flex h-96 items-center justify-center text-center">
+             <Card className="flex min-h-[36rem] items-center justify-center text-center">
               <div>
                 <BrainCircuit className="mx-auto h-12 w-12 text-muted-foreground" />
                 <CardTitle className="mt-4">Waiting for Synthesis</CardTitle>
-                <CardDescription className="mt-2">
-                  Select at least two projects and click "Synthesize" to begin.
+                <CardDescription className="mt-2 max-w-sm mx-auto">
+                  Select at least two projects from the list and click "Synthesize" to begin the AI debate.
                 </CardDescription>
               </div>
             </Card>
@@ -151,7 +159,7 @@ export default function SynthesisPage() {
                   <CardDescription>AI experts discuss the selected projects.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <pre className="font-code text-sm bg-muted p-4 rounded-md overflow-x-auto whitespace-pre-wrap break-words">
+                  <pre className="font-code text-sm bg-muted p-4 rounded-md overflow-x-auto whitespace-pre-wrap break-words h-[400px]">
                     {synthesisResult.debate}
                   </pre>
                 </CardContent>
@@ -162,7 +170,7 @@ export default function SynthesisPage() {
                   <CardDescription>A summary of the debate with proposed solutions.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                   <pre className="font-code text-sm bg-muted p-4 rounded-md overflow-x-auto whitespace-pre-wrap break-words">
+                   <pre className="font-code text-sm bg-muted p-4 rounded-md overflow-x-auto whitespace-pre-wrap break-words h-[400px]">
                     {synthesisResult.synthesis}
                   </pre>
                 </CardContent>
