@@ -26,7 +26,7 @@ export function ProjectSwitcher() {
     );
   }, [user, firestore]);
 
-  const { data: userProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject>(userProjectsQuery);
+  const { data: userProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject & {path: string}>(userProjectsQuery);
 
   const allProjects = useMemo(() => {
     if (!userProjects) return [];
@@ -44,8 +44,7 @@ export function ProjectSwitcher() {
   };
 
   const handleNewProject = () => {
-    clearState(false);
-    router.push('/prototype');
+    clearState(true); // force nav
   }
 
   const isLoading = isUserLoading || isLoadingProjects;
@@ -58,9 +57,12 @@ export function ProjectSwitcher() {
                 value={projectId || ''}
                 disabled={isLoading}
             >
-                <SelectTrigger className="w-full h-11 bg-background/50">
+                <SelectTrigger className="w-full h-11 bg-sidebar-accent border-sidebar-border">
                     {isLoading ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <div className="flex items-center w-full">
+                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                           <span className='truncate'>Loading...</span>
+                        </div>
                     ) : (
                         <SelectValue placeholder="Select a project...">
                             {projectName || 'Select a project...'}
@@ -73,7 +75,7 @@ export function ProjectSwitcher() {
                             {project.name}
                         </SelectItem>
                     ))}
-                     <Button variant="ghost" className="w-full justify-start mt-1" onClick={handleNewProject}>
+                     <Button variant="ghost" className="w-full justify-start mt-1 h-9" onClick={handleNewProject}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Create New Project
                     </Button>

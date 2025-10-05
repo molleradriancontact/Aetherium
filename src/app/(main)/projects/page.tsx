@@ -1,3 +1,4 @@
+
 'use client';
 
 import { PageHeader } from "@/components/page-header";
@@ -5,10 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useFirebase, useMemoFirebase } from "@/firebase";
 import { ArchitectProject } from "@/app/provider";
 import { useAppState } from "@/hooks/use-app-state";
-import { Globe, LayoutGrid, Loader2, Lock, Trash2 } from "lucide-react";
+import { Globe, LayoutGrid, Loader2, Lock, Trash2, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { collection, query, onSnapshot, orderBy, collectionGroup, where } from "firebase/firestore";
-import { useEffect, useState, useTransition } from "react";
+import { collection, query, orderBy, collectionGroup, where } from "firebase/firestore";
+import { useTransition, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { deleteProject } from "@/app/actions";
 import { format } from "date-fns";
@@ -33,26 +34,24 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [isDeleting, startDeleting] = useTransition();
 
-  const publicProjectsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'projects'), orderBy("createdAt", "desc"));
-  }, [firestore]);
-
   const userProjectsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    return query(collection(firestore, 'users', user.uid, 'projects'), orderBy("createdAt", "desc"));
+    return query(
+      collectionGroup(firestore, 'projects'),
+      where('collaborators', 'array-contains', user.uid),
+      orderBy('createdAt', 'desc')
+    );
   }, [user, firestore]);
 
-  const { data: publicProjects, isLoading: isLoadingPublic } = useCollection<ArchitectProject>(publicProjectsQuery);
-  const { data: userProjects, isLoading: isLoadingUser } = useCollection<ArchitectProject>(userProjectsQuery);
+  const { data: userProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject>(userProjectsQuery);
 
-  const allProjects = useMemoFirebase(() => {
-    const combined = [...(publicProjects || []), ...(userProjects || [])];
-    const uniqueProjects = Array.from(new Map(combined.map(p => [p.id, p])).values());
-    return uniqueProjects.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
-  }, [publicProjects, userProjects]);
+  const allProjects = useMemo(() => {
+    if (!userProjects) return [];
+    return [...userProjects].sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+  }, [userProjects]);
 
-  const isLoading = isLoadingPublic || isLoadingUser;
+
+  const isLoading = isLoadingProjects;
 
   const handleDelete = (projectId: string) => {
     if (!user) return;
@@ -77,9 +76,14 @@ export default function ProjectsPage() {
     });
   }
 
-  const handleSelectProject = (project: ArchitectProject & { path?: string }) => {
-    setProjectId(project.id, project.path);
+  const handleSelectProject = (project: ArchitectProject) => {
+    setProjectId(project.id, (project as any).path);
     router.push('/');
+  }
+
+  const handleNewProject = () => {
+    clearState(false);
+    router.push('/prototype');
   }
 
   if (!isHydrated || isLoading) {
@@ -94,8 +98,14 @@ export default function ProjectsPage() {
     <div className="space-y-8">
       <PageHeader 
         title="All Projects"
-        subtitle="Manage all of your private projects and browse public ones."
+        subtitle="Manage all your projects and browse public ones."
       />
+      <div className="flex justify-end">
+          <Button onClick={handleNewProject}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Create New Project
+          </Button>
+      </div>
 
       {allProjects && allProjects.length === 0 ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
@@ -108,7 +118,7 @@ export default function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {allProjects && allProjects.map((project) => (
-                <Card key={project.id} className="flex flex-col">
+                <Card key={project.id} className={`flex flex-col ${project.id === activeProjectId ? 'border-primary' : ''}`}>
                     <CardHeader>
                         <CardTitle className="truncate">{project.name}</CardTitle>
                         <CardDescription>

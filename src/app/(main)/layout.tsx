@@ -39,7 +39,6 @@ import { useFirebase } from '@/firebase';
 import { useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2 } from 'lucide-react';
-import Image from 'next/image';
 import { Inter, Source_Code_Pro } from 'next/font/google';
 import { ProjectSwitcher } from '@/components/project-switcher';
 
@@ -120,7 +119,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
            </div>
           <ProjectSwitcher />
         </SidebarHeader>
-        <SidebarMenu>
+        <SidebarMenu className="p-2">
           {navItems.map(item => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
