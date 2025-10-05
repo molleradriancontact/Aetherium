@@ -1,7 +1,7 @@
 
 'use server';
 
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, arrayUnion, arrayRemove } from 'firebase-admin/firestore';
 import { getAdminApp, getAdminAuth } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
@@ -72,7 +72,7 @@ export async function deleteProject(projectId: string) {
         for (const userId of collaboratorIds) {
             const userProfileRef = db.collection('users').doc(userId);
             batch.update(userProfileRef, {
-                projects: FieldValue.arrayRemove({ projectId, projectPath: projectDocRef.path })
+                projects: arrayRemove({ projectId, projectPath: projectDocRef.path })
             });
         }
         
@@ -182,12 +182,12 @@ export async function removeCollaborator(projectId: string, collaboratorId: stri
         const batch = db.batch();
 
         batch.update(projectRef, {
-            collaborators: FieldValue.arrayRemove(collaboratorId),
-            collaboratorDetails: FieldValue.arrayRemove(collaboratorDetails)
+            collaborators: arrayRemove(collaboratorId),
+            collaboratorDetails: arrayRemove(collaboratorDetails)
         });
 
         batch.update(userProfileRef, {
-            projects: FieldValue.arrayRemove({ projectId, projectPath: projectRef.path })
+            projects: arrayRemove({ projectId, projectPath: projectRef.path })
         });
         
         await batch.commit();
@@ -233,8 +233,8 @@ export async function acceptInvitation(invitationId: string) {
 
     // 1. Add user to project's collaborators list
     batch.update(projectRef, {
-        collaborators: FieldValue.arrayUnion(userId),
-        collaboratorDetails: FieldValue.arrayUnion({
+        collaborators: arrayUnion(userId),
+        collaboratorDetails: arrayUnion({
             id: userId,
             email: userProfileData.email,
             username: userProfileData.username,
@@ -244,7 +244,7 @@ export async function acceptInvitation(invitationId: string) {
     
     // 2. Add project reference to user's profile
     batch.update(userProfileRef, {
-        projects: FieldValue.arrayUnion({ projectId, projectPath: projectRef.path })
+        projects: arrayUnion({ projectId, projectPath: projectRef.path })
     });
 
     // 3. Delete invitation
@@ -276,5 +276,3 @@ export async function declineInvitation(invitationId: string) {
     revalidatePath('/invitations');
     return { success: true };
 }
-
-    

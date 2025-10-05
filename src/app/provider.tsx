@@ -6,7 +6,7 @@ import type { SuggestFrontendChangesFromAnalysisOutput } from '@/ai/flows/sugges
 import { AppStateContext, HistoryItem } from '@/hooks/use-app-state';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFirebase, useMemoFirebase, errorEmitter, FirestorePermissionError, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, collectionGroup, query, where, getDocs, getDoc, writeBatch, FieldValue } from 'firebase/firestore';
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, collectionGroup, query, where, getDocs, getDoc, writeBatch, arrayUnion } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { generateInitialAnalysisReport } from '@/ai/flows/generate-initial-analysis-report';
 import { generateProjectName } from '@/ai/flows/generate-project-name';
@@ -283,7 +283,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const batch = writeBatch(firestore);
     batch.set(projectRef, initialProject);
     batch.update(userProfileRef, {
-        projects: FieldValue.arrayUnion({ projectId: newProjectId, projectPath: projectRef.path })
+        projects: arrayUnion({ projectId: newProjectId, projectPath: projectRef.path })
     });
     await batch.commit();
     
@@ -356,7 +356,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const batch = writeBatch(firestore);
     batch.set(projectRef, initialChatProject);
     batch.update(userProfileRef, {
-        projects: FieldValue.arrayUnion({ projectId: newProjectId, projectPath: projectRef.path })
+        projects: arrayUnion({ projectId: newProjectId, projectPath: projectRef.path })
     });
     await batch.commit();
 
@@ -425,5 +425,3 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
-
-    
