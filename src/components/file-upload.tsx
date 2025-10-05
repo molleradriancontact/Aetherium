@@ -123,7 +123,7 @@ export function FileUpload() {
         disabled={isProcessing}
       />
     </li>
-  )), [files, isProcessing]);
+  )), [files, isProcessing, handleFileNameChange]);
 
   const handleClear = () => {
     setFiles([]);
