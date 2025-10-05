@@ -5,11 +5,10 @@ import { useFirebase, useMemoFirebase } from '@/firebase';
 import { useAppState } from '@/hooks/use-app-state';
 import { ArchitectProject } from '@/app/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, collectionGroup, orderBy, query, where } from 'firebase/firestore';
+import { collectionGroup, orderBy, query, where } from 'firebase/firestore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronsUpDown, Loader2, PlusCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useMemo } from 'react';
 import { Button } from './ui/button';
 
 export function ProjectSwitcher() {
@@ -26,17 +25,11 @@ export function ProjectSwitcher() {
     );
   }, [user, firestore]);
 
-  const { data: userProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject & {path: string}>(userProjectsQuery);
+  const { data: allProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject & {path: string}>(userProjectsQuery);
 
-  const allProjects = useMemo(() => {
-    if (!userProjects) return [];
-    // The query now gets all projects a user is a collaborator on, including their own.
-    // We can just sort them.
-    return [...userProjects].sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
-  }, [userProjects]);
 
   const handleSelectProject = (selectedProjectId: string) => {
-    const project = allProjects.find(p => p.id === selectedProjectId);
+    const project = allProjects?.find(p => p.id === selectedProjectId);
     if (project) {
       setProjectId(project.id, project.path);
       router.push('/');
@@ -44,7 +37,8 @@ export function ProjectSwitcher() {
   };
 
   const handleNewProject = () => {
-    clearState(true); // force nav
+    clearState(true); // force nav to /prototype
+    router.push('/prototype');
   }
 
   const isLoading = isUserLoading || isLoadingProjects;
@@ -70,7 +64,7 @@ export function ProjectSwitcher() {
                     )}
                 </SelectTrigger>
                 <SelectContent>
-                    {allProjects.map((project) => (
+                    {allProjects && allProjects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                             {project.name}
                         </SelectItem>

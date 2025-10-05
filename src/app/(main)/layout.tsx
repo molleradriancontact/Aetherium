@@ -86,7 +86,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     if (auth) {
-        sessionStorage.setItem('manual_logout', 'true');
         await auth.signOut();
         clearState(true); // Force clear and navigate
     }

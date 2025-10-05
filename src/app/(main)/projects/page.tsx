@@ -43,13 +43,7 @@ export default function ProjectsPage() {
     );
   }, [user, firestore]);
 
-  const { data: userProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject>(userProjectsQuery);
-
-  const allProjects = useMemo(() => {
-    if (!userProjects) return [];
-    return [...userProjects].sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
-  }, [userProjects]);
-
+  const { data: allProjects, isLoading: isLoadingProjects } = useCollection<ArchitectProject & {path: string}>(userProjectsQuery);
 
   const isLoading = isLoadingProjects;
 
@@ -76,13 +70,13 @@ export default function ProjectsPage() {
     });
   }
 
-  const handleSelectProject = (project: ArchitectProject) => {
-    setProjectId(project.id, (project as any).path);
+  const handleSelectProject = (project: ArchitectProject & {path: string}) => {
+    setProjectId(project.id, project.path);
     router.push('/');
   }
 
   const handleNewProject = () => {
-    clearState(false);
+    clearState(true); // forceNav to /prototype
     router.push('/prototype');
   }
 
