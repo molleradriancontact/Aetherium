@@ -247,6 +247,20 @@
         }
       },
       "required": ["id", "email", "username"]
+    },
+    "Client": {
+      "title": "Client",
+      "type": "object",
+      "description": "Represents a graphic designer's client.",
+      "properties": {
+        "id": { "type": "string" },
+        "designerId": { "type": "string" },
+        "name": { "type": "string" },
+        "styleDescription": { "type": "string" },
+        "brandKeywords": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "designerId", "name", "createdAt"]
     }
   },
   "auth": {
@@ -274,8 +288,10 @@
         "$ref": "#/entities/Invitation"
       },
       "description": "Stores pending project invitations for a user."
+    },
+    "/users/{userId}/clients/{clientId}": {
+        "schema": { "$ref": "#/entities/Client" },
+        "description": "Stores the clients for a specific designer (user)."
     }
   }
 }
-
-    

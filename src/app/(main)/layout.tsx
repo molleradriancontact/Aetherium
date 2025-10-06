@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -35,6 +34,7 @@ import {
   BookOpen,
   Mail,
   HeartPulse,
+  Contact,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
@@ -59,6 +59,7 @@ const sourceCodePro = Source_Code_Pro({
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/projects', label: 'Projects', icon: LayoutGrid },
+  { href: '/clients', label: 'Clients', icon: Contact },
   { href: '/analysis', label: 'Analysis Report', icon: FileText },
   { href: '/frontend', label: 'Frontend', icon: Code },
   { href: '/backend', label: 'Backend', icon: Database },

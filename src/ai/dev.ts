@@ -14,6 +14,7 @@ if (process.env.NODE_ENV === 'development' && (global as any).genkitFlowsRegiste
   require('./flows/suggest-backend-modifications.ts');
   require('./flows/suggest-frontend-modifications.ts');
   require('./flows/generate-project-name.ts');
+  require('./flows/generate-design-ideas.ts');
   require('./flows/hello.ts');
   require('./flows/chat.ts');
   require('./flows/research.ts');

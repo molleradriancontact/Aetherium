@@ -1,0 +1,149 @@
+
+'use client';
+
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFirebase, useMemoFirebase } from "@/firebase";
+import { useDoc } from "@/firebase/firestore/use-doc";
+import { Loader2, WandSparkles, Image as ImageIcon } from "lucide-react";
+import { doc } from "firebase/firestore";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useState, useTransition } from "react";
+import { generateDesignIdeas, DesignIdea } from "@/ai/flows/generate-design-ideas";
+import Image from "next/image";
+
+interface Client {
+    id: string;
+    name: string;
+    styleDescription: string;
+    brandKeywords: string[];
+}
+
+export default function ClientDetailPage({ params }: { params: { id: string } }) {
+    const { user, firestore } = useFirebase();
+    const { toast } = useToast();
+    const [isGenerating, startGenerating] = useTransition();
+    const [designIdeas, setDesignIdeas] = useState<DesignIdea[]>([]);
+
+    const clientDocRef = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return doc(firestore, `users/${user.uid}/clients/${params.id}`);
+    }, [user, firestore, params.id]);
+
+    const { data: client, isLoading } = useDoc<Client>(clientDocRef);
+
+    const handleGenerateIdeas = async () => {
+        if (!client) return;
+        setDesignIdeas([]);
+
+        startGenerating(async () => {
+            try {
+                const result = await generateDesignIdeas({
+                    styleDescription: client.styleDescription,
+                    brandKeywords: client.brandKeywords,
+                });
+                setDesignIdeas(result.ideas);
+                toast({ title: "Ideas Generated", description: "New design concepts are ready for review." });
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+                toast({ title: "Generation Failed", description: errorMessage, variant: "destructive" });
+            }
+        });
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!client) {
+        return (
+            <PageHeader title="Client Not Found" subtitle="Could not find a client with the specified ID." />
+        );
+    }
+    
+    return (
+        <div className="space-y-8">
+            <PageHeader
+                title={client.name}
+                subtitle="Manage client details and generate design ideas."
+            />
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-1 space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Client Profile</CardTitle>
+                            <CardDescription>Style and brand information for {client.name}.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div>
+                                <h4 className="font-semibold text-sm">Brand Keywords</h4>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {client.brandKeywords.length > 0 ? client.brandKeywords.map(kw => (
+                                        <span key={kw} className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-full">{kw}</span>
+                                    )) : <p className="text-sm text-muted-foreground">No keywords provided.</p>}
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="font-semibold text-sm">Style Description</h4>
+                                <p className="text-sm text-muted-foreground mt-2">
+                                    {client.styleDescription || "No style description provided."}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Button onClick={handleGenerateIdeas} disabled={isGenerating} className="w-full">
+                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}
+                        {isGenerating ? 'Generating Ideas...' : 'Generate New Ideas'}
+                    </Button>
+                </div>
+
+                <div className="lg:col-span-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>AI-Generated Design Concepts</CardTitle>
+                            <CardDescription>Visual ideas and suggestions generated by the AI based on the client's profile.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {isGenerating ? (
+                                <div className="flex justify-center items-center h-96">
+                                    <div className="text-center">
+                                        <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+                                        <p className="mt-4 text-muted-foreground">AI is brainstorming ideas...</p>
+                                    </div>
+                                </div>
+                            ) : designIdeas.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {designIdeas.map((idea, index) => (
+                                        <Card key={index}>
+                                            <CardContent className="p-0">
+                                                <div className="aspect-video bg-muted flex items-center justify-center relative">
+                                                     <Image src={idea.imageUrl} alt={idea.title} fill sizes="(max-width: 768px) 100vw, 50vw" className="rounded-t-lg object-cover"/>
+                                                </div>
+                                            </CardContent>
+                                            <CardHeader>
+                                                <CardTitle className="text-base">{idea.title}</CardTitle>
+                                                <CardDescription className="text-xs line-clamp-3">{idea.description}</CardDescription>
+                                            </CardHeader>
+                                        </Card>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center text-center p-12 border-2 border-dashed rounded-lg h-96">
+                                    <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                                    <p className="mt-4 font-medium">No ideas generated yet.</p>
+                                    <p className="text-sm text-muted-foreground">Click "Generate New Ideas" to start.</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        </div>
+    );
+}

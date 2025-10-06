@@ -6,7 +6,6 @@ import { FirebaseProvider } from '@/firebase/provider';
 import { getSdks } from '@/firebase';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
-import { getCrashlytics, isSupported as isCrashlyticsSupported } from 'firebase/crashlytics';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -27,11 +26,16 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
         setAnalytics(getAnalytics(firebaseApp));
       }
     });
-    isCrashlyticsSupported().then(supported => {
-        if (supported) {
+    
+    if (firebaseApp) {
+      import('firebase/crashlytics').then(({ getCrashlytics, isSupported }) => {
+        isSupported().then((supported) => {
+          if (supported) {
             setCrashlytics(getCrashlytics(firebaseApp));
-        }
-    })
+          }
+        });
+      }).catch(err => console.error("Failed to load Firebase Crashlytics", err));
+    }
   }, [firebaseApp]);
 
   return (
