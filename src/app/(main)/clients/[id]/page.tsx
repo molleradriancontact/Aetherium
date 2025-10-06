@@ -3,10 +3,10 @@
 
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFirebase, useMemoFirebase, setDocumentNonBlocking, useCollection } from "@/firebase";
+import { useFirebase, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, useCollection } from "@/firebase";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2, WandSparkles, Image as ImageIcon, CalendarIcon, Save, Trash2 } from "lucide-react";
-import { collection, doc, serverTimestamp, writeBatch, deleteDoc } from "firebase/firestore";
+import { Loader2, WandSparkles, Image as ImageIcon, CalendarIcon, Save, Trash2, ListTodo, Plus, Check } from "lucide-react";
+import { collection, doc, serverTimestamp, writeBatch, deleteDoc, orderBy, query, addDoc } from "firebase/firestore";
 import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +34,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const timelineSchema = z.object({
   status: z.string().optional(),
@@ -59,6 +61,14 @@ interface DesignAsset {
     mediaType: 'image' | 'video';
 }
 
+interface JobTask {
+    id: string;
+    description: string;
+    isCompleted: boolean;
+    createdAt: any;
+}
+
+
 const statusColors = {
     "Not Started": "bg-gray-500",
     "In Progress": "bg-blue-500",
@@ -71,7 +81,8 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
     const { user, firestore, storage } = useFirebase();
     const { toast } = useToast();
     const [isGenerating, startGenerating] = useTransition();
-    const [designIdeas, setDesignIdeas] = useState<DesignIdea[]>([]);
+    const [newTaskDescription, setNewTaskDescription] = useState('');
+    const [isAddingTask, startAddingTask] = useTransition();
 
     const clientDocRef = useMemoFirebase(() => {
         if (!user || !firestore) return null;
@@ -82,9 +93,15 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
         if (!clientDocRef) return null;
         return collection(clientDocRef, 'design_assets');
     }, [clientDocRef]);
+    
+    const tasksQuery = useMemoFirebase(() => {
+        if (!clientDocRef) return null;
+        return query(collection(clientDocRef, 'tasks'), orderBy('createdAt', 'asc'));
+    }, [clientDocRef]);
 
     const { data: client, isLoading: isClientLoading } = useDoc<Client>(clientDocRef);
     const { data: assets, isLoading: areAssetsLoading } = useCollection<DesignAsset>(assetsQuery);
+    const { data: tasks, isLoading: areTasksLoading } = useCollection<JobTask>(tasksQuery);
 
     const { control, handleSubmit, formState: { isSubmitting }, setValue } = useForm<TimelineFormValues>({
         resolver: zodResolver(timelineSchema),
@@ -101,7 +118,6 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
 
     const handleGenerateIdeas = async () => {
         if (!client || !user) return;
-        setDesignIdeas([]);
 
         startGenerating(async () => {
             try {
@@ -111,13 +127,11 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                     brandKeywords: client.brandKeywords,
                 });
                 
-                // Upload generated ideas to storage and save metadata to Firestore
                 const batch = writeBatch(firestore);
                 for (const idea of results.ideas) {
                     const assetId = doc(collection(firestore, 'tmp')).id; // Generate a unique ID
                     const assetRef = storageRef(storage, `users/${user.uid}/clients/${client.id}/${assetId}.jpg`);
                     
-                    // Picsum URLs are regular URLs, so we need to fetch them and upload the blob
                     const response = await fetch(idea.imageUrl);
                     const blob = await response.blob();
 
@@ -165,14 +179,37 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
     const handleDeleteAsset = async (assetId: string) => {
         if (!user || !client) return;
         try {
-            // Note: Deleting from storage is not implemented here to prevent accidental data loss.
-            // In a production app, you would also delete the file from Firebase Storage.
             await deleteDoc(doc(firestore, `users/${user.uid}/clients/${client.id}/design_assets/${assetId}`));
             toast({ title: "Asset Removed", description: "The asset has been removed from your library."});
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
             toast({ title: "Deletion Failed", description: errorMessage, variant: "destructive" });
         }
+    };
+    
+    const handleAddTask = () => {
+        if (!clientDocRef || !newTaskDescription.trim()) return;
+
+        startAddingTask(async () => {
+            const tasksColRef = collection(clientDocRef, 'tasks');
+            await addDoc(tasksColRef, {
+                description: newTaskDescription,
+                isCompleted: false,
+                createdAt: serverTimestamp(),
+            });
+            setNewTaskDescription('');
+        });
+    };
+
+    const handleToggleTask = (taskId: string, isCompleted: boolean) => {
+        if (!clientDocRef) return;
+        const taskDocRef = doc(clientDocRef, 'tasks', taskId);
+        updateDocumentNonBlocking(taskDocRef, { isCompleted: !isCompleted });
+    };
+
+    const handleDeleteTask = (taskId: string) => {
+        if (!clientDocRef) return;
+        deleteDoc(doc(clientDocRef, 'tasks', taskId));
     };
 
 
@@ -194,10 +231,10 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
         <div className="space-y-8">
             <PageHeader
                 title={client.name}
-                subtitle="Manage client details and generate design ideas."
+                subtitle="Manage client details, tasks, and generate design ideas."
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-1 space-y-6">
                     <Card>
                         <CardHeader>
@@ -312,7 +349,56 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                     </Button>
                 </div>
 
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 space-y-8">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <ListTodo />
+                                Job Tasks
+                            </CardTitle>
+                            <CardDescription>Keep track of all the to-do items for this job.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex gap-2 mb-4">
+                                <Input 
+                                    placeholder="e.g., 'Draft initial mockups'"
+                                    value={newTaskDescription}
+                                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+                                    disabled={isAddingTask}
+                                />
+                                <Button onClick={handleAddTask} disabled={isAddingTask || !newTaskDescription.trim()}>
+                                    {isAddingTask ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                    <span className="sr-only">Add Task</span>
+                                </Button>
+                            </div>
+                            {areTasksLoading ? (
+                                <div className="flex justify-center p-4">
+                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                </div>
+                            ) : tasks && tasks.length > 0 ? (
+                                <ul className="space-y-3">
+                                    {tasks.map(task => (
+                                        <li key={task.id} className="flex items-center gap-3 group">
+                                            <Checkbox 
+                                                id={`task-${task.id}`}
+                                                checked={task.isCompleted}
+                                                onCheckedChange={() => handleToggleTask(task.id, task.isCompleted)}
+                                            />
+                                            <Label htmlFor={`task-${task.id}`} className={cn("flex-grow cursor-pointer", task.isCompleted && "line-through text-muted-foreground")}>
+                                                {task.description}
+                                            </Label>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteTask(task.id)}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-muted-foreground text-center py-4">No tasks added yet.</p>
+                            )}
+                        </CardContent>
+                    </Card>
                     <Card>
                         <CardHeader>
                             <CardTitle>Asset Library</CardTitle>
