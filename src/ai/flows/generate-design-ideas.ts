@@ -14,6 +14,7 @@ export type DesignIdea = z.infer<typeof DesignIdeaSchema>;
 
 
 const GenerateDesignIdeasInputSchema = z.object({
+  clientId: z.string().describe("The ID of the client for whom the ideas are being generated."),
   styleDescription: z.string().optional().describe("A description of the client's visual style and typical requests."),
   brandKeywords: z.array(z.string()).optional().describe('A list of keywords that define the client\'s brand (e.g., "modern", "minimalist").'),
 });
@@ -67,7 +68,7 @@ const generateDesignIdeasFlow = ai.defineFlow(
     // Ensure all image URLs are valid and using a consistent size for the UI
     const validatedIdeas = output.ideas.map((idea, index) => ({
       ...idea,
-      imageUrl: `https://picsum.photos/seed/${params.id}${index}/600/400`,
+      imageUrl: `https://picsum.photos/seed/${input.clientId}${index}/600/400`,
     }));
 
     return { ideas: validatedIdeas };

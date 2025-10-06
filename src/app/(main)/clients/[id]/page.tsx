@@ -9,7 +9,7 @@ import { Loader2, WandSparkles, Image as ImageIcon, CalendarIcon, Save } from "l
 import { doc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { generateDesignIdeas, DesignIdea } from "@/ai/flows/generate-design-ideas";
 import Image from "next/image";
 import { format } from "date-fns";
@@ -65,13 +65,12 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
         resolver: zodResolver(timelineSchema),
     });
 
-    useState(() => {
+    useEffect(() => {
         if (client) {
             setValue('status', client.status);
             if (client.startDate) setValue('startDate', new Date(client.startDate.seconds * 1000));
             if (client.completionDate) setValue('completionDate', new Date(client.completionDate.seconds * 1000));
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [client, setValue]);
 
 
@@ -82,6 +81,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
         startGenerating(async () => {
             try {
                 const result = await generateDesignIdeas({
+                    clientId: client.id,
                     styleDescription: client.styleDescription,
                     brandKeywords: client.brandKeywords,
                 });
@@ -226,7 +226,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                                  <Button type="submit" disabled={isSubmitting} className="w-full">
                                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                     Save Timeline
-                                </Button>
+                                 </Button>
                             </form>
                         </CardContent>
                     </Card>
