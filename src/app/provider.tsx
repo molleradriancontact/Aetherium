@@ -351,7 +351,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         createdAt: serverTimestamp(),
         projectType: 'chat',
         isPublic: isPublic,
-        chatHistory: [initialMessage], // Start with just the user's message
+        chatHistory: [initialMessage],
         collaborators: [user.uid],
         collaboratorDetails: [{
             id: user.uid,
@@ -371,23 +371,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setProjectId(newProjectId, projectRef.path);
     setDetailedStatus(null);
     
-    // Now, with the project created and the ID set, get the AI response
     (async () => {
-        try {
-            setDetailedStatus("AI is thinking...");
-            const result = await chat([initialMessage], initialMessage.content);
-            const aiResponse: Message = { role: 'model', content: result.content };
-            
-            // This will now update the existing document
-            await addChatMessage(newProjectId, aiResponse);
-        } catch (error) {
-            console.error('Initial chat response error:', error);
-            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-            const errorResponse: Message = { role: 'model', content: `Sorry, I encountered an error: ${errorMessage}` };
-            await addChatMessage(newProjectId, errorResponse);
-        } finally {
-            setDetailedStatus(null);
+        setDetailedStatus("AI is thinking...");
+        let attempts = 0;
+        const maxAttempts = 2;
+
+        while (attempts < maxAttempts) {
+            try {
+                const result = await chat([initialMessage], initialMessage.content);
+                const aiResponse: Message = { role: 'model', content: result.content };
+                await addChatMessage(newProjectId, aiResponse);
+                
+                if (result.functionCall?.name === 'saveDocument') {
+                    // The function call is handled in the chat component, but we can log it
+                    console.log("AI requested to save a document.");
+                }
+
+                // If successful, break the loop
+                break;
+
+            } catch (error) {
+                attempts++;
+                console.error(`Initial chat response error (attempt ${attempts}):`, error);
+                
+                if (attempts >= maxAttempts) {
+                    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+                    const errorResponse: Message = { role: 'model', content: `Sorry, I was unable to process your request after multiple attempts. Please try again. Error: ${errorMessage}` };
+                    await addChatMessage(newProjectId, errorResponse);
+                    break; 
+                }
+                // Optional: wait a bit before retrying
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
+        setDetailedStatus(null);
     })();
 
     return newProjectId;
