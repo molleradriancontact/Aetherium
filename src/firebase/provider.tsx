@@ -8,6 +8,7 @@ import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useToast } from '@/hooks/use-toast';
+import { Analytics } from 'firebase/analytics';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -15,6 +16,7 @@ interface FirebaseProviderProps {
   firestore: Firestore;
   auth: Auth;
   storage: FirebaseStorage;
+  analytics?: Analytics;
 }
 
 interface UserAuthState {
@@ -29,6 +31,7 @@ export interface FirebaseContextState {
   firestore: Firestore | null;
   auth: Auth | null;
   storage: FirebaseStorage | null;
+  analytics?: Analytics | null;
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
@@ -39,6 +42,7 @@ export interface FirebaseServicesAndUser {
   firestore: Firestore;
   auth: Auth;
   storage: FirebaseStorage;
+  analytics?: Analytics;
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
@@ -58,6 +62,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   firestore,
   auth,
   storage,
+  analytics,
 }) => {
   const { toast } = useToast();
   const [userAuthState, setUserAuthState] = useState<UserAuthState>({
@@ -127,11 +132,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       firestore: servicesAvailable ? firestore : null,
       auth: servicesAvailable ? auth : null,
       storage: servicesAvailable ? storage : null,
+      analytics: servicesAvailable ? analytics : null,
       user: userAuthState.user,
       isUserLoading: userAuthState.isUserLoading,
       userError: userAuthState.userError,
     };
-  }, [firebaseApp, firestore, auth, storage, userAuthState]);
+  }, [firebaseApp, firestore, auth, storage, analytics, userAuthState]);
 
   return (
     <FirebaseContext.Provider value={contextValue}>
@@ -157,6 +163,7 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     firestore: context.firestore,
     auth: context.auth,
     storage: context.storage,
+    analytics: context.analytics ?? undefined,
     user: context.user,
     isUserLoading: context.isUserLoading,
     userError: context.userError,
