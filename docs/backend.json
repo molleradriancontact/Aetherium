@@ -264,6 +264,22 @@
         "status": { "type": "string", "enum": ["Not Started", "In Progress", "Completed", "On Hold"], "description": "The current status of the client's job." }
       },
       "required": ["id", "designerId", "name", "createdAt"]
+    },
+    "DesignAsset": {
+        "title": "Design Asset",
+        "type": "object",
+        "description": "Represents a single media asset generated for a client.",
+        "properties": {
+            "id": { "type": "string" },
+            "clientId": { "type": "string" },
+            "designerId": { "type": "string" },
+            "title": { "type": "string" },
+            "prompt": { "type": "string" },
+            "mediaType": { "type": "string", "enum": ["image", "video"] },
+            "storageUrl": { "type": "string", "format": "uri" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "clientId", "designerId", "title", "mediaType", "storageUrl", "createdAt"]
     }
   },
   "auth": {
@@ -295,6 +311,10 @@
     "/users/{userId}/clients/{clientId}": {
         "schema": { "$ref": "#/entities/Client" },
         "description": "Stores the clients for a specific designer (user)."
+    },
+    "/users/{userId}/clients/{clientId}/design_assets/{assetId}": {
+        "schema": { "$ref": "#/entities/DesignAsset" },
+        "description": "Stores generated media assets for a specific client."
     }
   }
 }

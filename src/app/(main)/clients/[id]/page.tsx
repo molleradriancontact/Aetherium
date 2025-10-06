@@ -3,10 +3,11 @@
 
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFirebase, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
+import { useFirebase, useMemoFirebase, setDocumentNonBlocking, useCollection } from "@/firebase";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2, WandSparkles, Image as ImageIcon, CalendarIcon, Save } from "lucide-react";
-import { doc } from "firebase/firestore";
+import { Loader2, WandSparkles, Image as ImageIcon, CalendarIcon, Save, Trash2 } from "lucide-react";
+import { collection, doc, serverTimestamp, writeBatch, deleteDoc } from "firebase/firestore";
+import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useTransition, useEffect } from "react";
@@ -22,6 +23,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const timelineSchema = z.object({
   status: z.string().optional(),
@@ -40,6 +52,13 @@ interface Client {
     status?: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold';
 }
 
+interface DesignAsset {
+    id: string;
+    storageUrl: string;
+    title: string;
+    mediaType: 'image' | 'video';
+}
+
 const statusColors = {
     "Not Started": "bg-gray-500",
     "In Progress": "bg-blue-500",
@@ -49,7 +68,7 @@ const statusColors = {
 
 
 export default function ClientDetailPage({ params }: { params: { id: string } }) {
-    const { user, firestore } = useFirebase();
+    const { user, firestore, storage } = useFirebase();
     const { toast } = useToast();
     const [isGenerating, startGenerating] = useTransition();
     const [designIdeas, setDesignIdeas] = useState<DesignIdea[]>([]);
@@ -59,7 +78,13 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
         return doc(firestore, `users/${user.uid}/clients/${params.id}`);
     }, [user, firestore, params.id]);
 
-    const { data: client, isLoading } = useDoc<Client>(clientDocRef);
+    const assetsQuery = useMemoFirebase(() => {
+        if (!clientDocRef) return null;
+        return collection(clientDocRef, 'design_assets');
+    }, [clientDocRef]);
+
+    const { data: client, isLoading: isClientLoading } = useDoc<Client>(clientDocRef);
+    const { data: assets, isLoading: areAssetsLoading } = useCollection<DesignAsset>(assetsQuery);
 
     const { control, handleSubmit, formState: { isSubmitting }, setValue } = useForm<TimelineFormValues>({
         resolver: zodResolver(timelineSchema),
@@ -75,32 +100,83 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
 
 
     const handleGenerateIdeas = async () => {
-        if (!client) return;
+        if (!client || !user) return;
         setDesignIdeas([]);
 
         startGenerating(async () => {
             try {
-                const result = await generateDesignIdeas({
+                const results = await generateDesignIdeas({
                     clientId: client.id,
                     styleDescription: client.styleDescription,
                     brandKeywords: client.brandKeywords,
                 });
-                setDesignIdeas(result.ideas);
-                toast({ title: "Ideas Generated", description: "New design concepts are ready for review." });
+                
+                // Upload generated ideas to storage and save metadata to Firestore
+                const batch = writeBatch(firestore);
+                for (const idea of results.ideas) {
+                    const assetId = doc(collection(firestore, 'tmp')).id; // Generate a unique ID
+                    const assetRef = storageRef(storage, `users/${user.uid}/clients/${client.id}/${assetId}.jpg`);
+                    
+                    // Picsum URLs are regular URLs, so we need to fetch them and upload the blob
+                    const response = await fetch(idea.imageUrl);
+                    const blob = await response.blob();
+
+                    const snapshot = await uploadString(assetRef, await blobToDataURL(blob), 'data_url');
+                    const downloadURL = await getDownloadURL(snapshot.ref);
+
+                    const assetDocRef = doc(firestore, `users/${user.uid}/clients/${client.id}/design_assets/${assetId}`);
+                    batch.set(assetDocRef, {
+                        id: assetId,
+                        clientId: client.id,
+                        designerId: user.uid,
+                        title: idea.title,
+                        prompt: idea.description,
+                        mediaType: 'image',
+                        storageUrl: downloadURL,
+                        createdAt: serverTimestamp(),
+                    });
+                }
+                await batch.commit();
+
+                toast({ title: "Ideas Generated & Saved", description: "New design concepts have been saved to your asset library." });
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
                 toast({ title: "Generation Failed", description: errorMessage, variant: "destructive" });
             }
         });
     };
+    
+    // Helper to convert blob to data URL
+    const blobToDataURL = (blob: Blob): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = (err) => reject(err);
+            reader.readAsDataURL(blob);
+        });
+    }
 
     const handleUpdateTimeline = (data: TimelineFormValues) => {
         if (!clientDocRef) return;
         setDocumentNonBlocking(clientDocRef, data, { merge: true });
         toast({ title: "Timeline Updated", description: "The client's timeline has been saved."});
     }
+    
+    const handleDeleteAsset = async (assetId: string) => {
+        if (!user || !client) return;
+        try {
+            // Note: Deleting from storage is not implemented here to prevent accidental data loss.
+            // In a production app, you would also delete the file from Firebase Storage.
+            await deleteDoc(doc(firestore, `users/${user.uid}/clients/${client.id}/design_assets/${assetId}`));
+            toast({ title: "Asset Removed", description: "The asset has been removed from your library."});
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            toast({ title: "Deletion Failed", description: errorMessage, variant: "destructive" });
+        }
+    };
 
-    if (isLoading) {
+
+    if (isClientLoading) {
         return (
             <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -239,37 +315,56 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                 <div className="lg:col-span-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>AI-Generated Design Concepts</CardTitle>
-                            <CardDescription>Visual ideas and suggestions generated by the AI based on the client's profile.</CardDescription>
+                            <CardTitle>Asset Library</CardTitle>
+                            <CardDescription>All media assets generated for {client.name}. Ideas generated here are automatically saved.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {isGenerating ? (
+                            {areAssetsLoading ? (
                                 <div className="flex justify-center items-center h-96">
-                                    <div className="text-center">
-                                        <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-                                        <p className="mt-4 text-muted-foreground">AI is brainstorming ideas...</p>
-                                    </div>
+                                    <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
                                 </div>
-                            ) : designIdeas.length > 0 ? (
+                            ) : assets && assets.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {designIdeas.map((idea, index) => (
-                                        <Card key={index}>
+                                    {assets.map((asset) => (
+                                        <Card key={asset.id} className="group relative">
                                             <CardContent className="p-0">
                                                 <div className="aspect-video bg-muted flex items-center justify-center relative">
-                                                     <Image src={idea.imageUrl} alt={idea.title} fill sizes="(max-width: 768px) 100vw, 50vw" className="rounded-t-lg object-cover"/>
+                                                     {asset.mediaType === 'image' ? (
+                                                        <Image src={asset.storageUrl} alt={asset.title} fill sizes="(max-width: 768px) 100vw, 50vw" className="rounded-t-lg object-cover"/>
+                                                     ) : (
+                                                         <video src={asset.storageUrl} controls muted className="rounded-t-lg object-cover w-full h-full" />
+                                                     )}
                                                 </div>
                                             </CardContent>
                                             <CardHeader>
-                                                <CardTitle className="text-base">{idea.title}</CardTitle>
-                                                <CardDescription className="text-xs line-clamp-3">{idea.description}</CardDescription>
+                                                <CardTitle className="text-base">{asset.title}</CardTitle>
                                             </CardHeader>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This will delete the asset from your library, but the file will remain in storage. This action cannot be undone.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteAsset(asset.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </Card>
                                     ))}
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center justify-center text-center p-12 border-2 border-dashed rounded-lg h-96">
                                     <ImageIcon className="h-12 w-12 text-muted-foreground" />
-                                    <p className="mt-4 font-medium">No ideas generated yet.</p>
+                                    <p className="mt-4 font-medium">No assets in the library yet.</p>
                                     <p className="text-sm text-muted-foreground">Click "Generate New Ideas" to start.</p>
                                 </div>
                             )}
