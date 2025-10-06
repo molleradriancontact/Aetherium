@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Bot, User, Copy, CopyCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAppState } from '@/hooks/use-app-state';
-import { research } from '@/ai/flows/research';
+import { chat } from '@/ai/flows/chat';
 import type { Message } from '@/ai/flows/schemas';
 
 export function ProjectChatInterface() {
@@ -19,7 +19,7 @@ export function ProjectChatInterface() {
   const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
 
   const { toast } = useToast();
-  const { projectId, chatHistory, addChatMessage, analysisReport, detailedStatus } = useAppState();
+  const { projectId, chatHistory, addChatMessage, detailedStatus } = useAppState();
 
   const messages = chatHistory || [];
   const isLoading = !!detailedStatus;
@@ -38,18 +38,23 @@ export function ProjectChatInterface() {
     if (!input.trim() || !projectId) return;
 
     const userMessage: Message = { role: 'user', content: input };
+    const currentInput = input;
     await addChatMessage(projectId, userMessage);
     setInput('');
 
     startResponding(async () => {
       try {
-        const result = await research({
-          messages: [...messages, userMessage],
-          analysisReport: analysisReport || "",
-        });
+        const historyForAI = [...messages, userMessage];
+        const result = await chat(historyForAI, currentInput);
         
         const aiResponse: Message = { role: 'model', content: result.content };
         await addChatMessage(projectId, aiResponse);
+        
+        if (result.functionCall?.name === 'saveDocument') {
+            // The main chat interface already handles this logic, but we can add a toast here for clarity if needed
+            toast({ title: 'Save Document Requested', description: 'The AI requested to save the document. This is handled by the prototype flow.' });
+        }
+
       } catch (error) {
         console.error('Project Chat error:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
