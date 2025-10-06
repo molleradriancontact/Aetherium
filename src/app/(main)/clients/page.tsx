@@ -37,7 +37,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { format } from "date-fns";
+import { format, differenceInDays, isPast } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -139,6 +139,21 @@ export default function ClientsPage() {
                 toast({ title: "Failed to remove client", description: errorMessage, variant: "destructive" });
             }
          });
+    }
+    
+    const getDeadlineIndicator = (client: Client) => {
+        if (!client.completionDate || client.status === 'Completed') return null;
+
+        const endDate = new Date(client.completionDate.seconds * 1000);
+        const daysRemaining = differenceInDays(endDate, new Date());
+
+        if (isPast(endDate) && daysRemaining < 0) {
+            return <div className="h-2 w-2 rounded-full bg-red-500" title="Overdue" />;
+        }
+        if (daysRemaining <= 7) {
+            return <div className="h-2 w-2 rounded-full bg-yellow-500" title={`Due in ${daysRemaining + 1} days`} />;
+        }
+        return null;
     }
 
     return (
@@ -328,6 +343,7 @@ export default function ClientsPage() {
                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                          <CalendarIcon className="h-4 w-4" />
                                          <span>{format(new Date(client.startDate.seconds * 1000), 'MMM d, yyyy')} - {format(new Date(client.completionDate.seconds * 1000), 'MMM d, yyyy')}</span>
+                                         {getDeadlineIndicator(client)}
                                      </div>
                                  )}
                              </div>
@@ -358,3 +374,5 @@ export default function ClientsPage() {
     </div>
   );
 }
+
+    
