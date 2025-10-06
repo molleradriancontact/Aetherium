@@ -5,13 +5,13 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase, useMemoFirebase } from "@/firebase";
 import { useCollection } from "@/firebase/firestore/use-collection";
-import { Loader2, PlusCircle, Users, Contact, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Users, Contact, Trash2, CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useTransition, useState } from "react";
 import Link from "next/link";
 import { collection, doc, writeBatch, serverTimestamp, deleteDoc } from "firebase/firestore";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
@@ -38,11 +38,19 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const clientSchema = z.object({
   name: z.string().min(2, "Client name must be at least 2 characters."),
   styleDescription: z.string().min(10, "Style description is too short.").optional().or(z.literal('')),
   brandKeywords: z.string().optional(),
+  status: z.string().optional(),
+  startDate: z.date().optional(),
+  completionDate: z.date().optional(),
 });
 
 type ClientFormValues = z.infer<typeof clientSchema>;
@@ -53,7 +61,17 @@ interface Client {
     styleDescription: string;
     brandKeywords: string[];
     createdAt: any;
+    startDate?: any;
+    completionDate?: any;
+    status?: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold';
 }
+
+const statusColors = {
+    "Not Started": "bg-gray-500",
+    "In Progress": "bg-blue-500",
+    "Completed": "bg-green-500",
+    "On Hold": "bg-yellow-500",
+} as const;
 
 export default function ClientsPage() {
     const { user, firestore } = useFirebase();
@@ -68,8 +86,11 @@ export default function ClientsPage() {
 
     const { data: clients, isLoading } = useCollection<Client>(clientsQuery);
 
-    const { register, handleSubmit, reset, formState: { errors } } = useForm<ClientFormValues>({
+    const { control, register, handleSubmit, reset, formState: { errors } } = useForm<ClientFormValues>({
         resolver: zodResolver(clientSchema),
+        defaultValues: {
+            status: "Not Started"
+        }
     });
 
     const handleAddClient = (data: ClientFormValues) => {
@@ -87,7 +108,10 @@ export default function ClientsPage() {
                         name: data.name,
                         styleDescription: data.styleDescription,
                         brandKeywords: keywords,
-                        createdAt: serverTimestamp()
+                        createdAt: serverTimestamp(),
+                        status: data.status,
+                        startDate: data.startDate,
+                        completionDate: data.completionDate
                     })
                     .commit();
 
@@ -131,7 +155,7 @@ export default function ClientsPage() {
                     Add New Client
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-lg">
                  <form onSubmit={handleSubmit(handleAddClient)}>
                     <DialogHeader>
                         <DialogTitle>Add New Client</DialogTitle>
@@ -148,6 +172,89 @@ export default function ClientsPage() {
                             </div>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="status" className="text-right">Status</Label>
+                            <div className="col-span-3">
+                                <Controller
+                                    name="status"
+                                    control={control}
+                                    render={({ field }) => (
+                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select status" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Not Started">Not Started</SelectItem>
+                                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                                <SelectItem value="Completed">Completed</SelectItem>
+                                                <SelectItem value="On Hold">On Hold</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label className="text-right">Dates</Label>
+                            <div className="col-span-3 grid grid-cols-2 gap-2">
+                                <Controller
+                                    name="startDate"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                variant={"outline"}
+                                                className={cn(
+                                                    "w-full justify-start text-left font-normal",
+                                                    !field.value && "text-muted-foreground"
+                                                )}
+                                                >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {field.value ? format(field.value, "PPP") : <span>Start date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={field.value}
+                                                    onSelect={field.onChange}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    )}
+                                />
+                                <Controller
+                                    name="completionDate"
+                                    control={control}
+                                    render={({ field }) => (
+                                         <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                variant={"outline"}
+                                                className={cn(
+                                                    "w-full justify-start text-left font-normal",
+                                                    !field.value && "text-muted-foreground"
+                                                )}
+                                                >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {field.value ? format(field.value, "PPP") : <span>End date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={field.value}
+                                                    onSelect={field.onChange}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    )}
+                                />
+                            </div>
+                        </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="brandKeywords" className="text-right">Keywords</Label>
                             <div className="col-span-3">
                                 <Input id="brandKeywords" {...register("brandKeywords")} placeholder="e.g., modern, minimalist, bold" />
@@ -183,11 +290,9 @@ export default function ClientsPage() {
                     <Card key={client.id} className="flex flex-col">
                         <CardHeader>
                             <div className="flex justify-between items-start">
-                                <div>
+                                <div className="space-y-2">
                                     <CardTitle className="truncate">{client.name}</CardTitle>
-                                    <CardDescription>
-                                        Added {format(new Date(client.createdAt.seconds * 1000), 'MMM d, yyyy')}
-                                    </CardDescription>
+                                    {client.status && <Badge variant="secondary" className={cn(statusColors[client.status], "text-white")}>{client.status}</Badge>}
                                 </div>
                                  <AlertDialog>
                                     <AlertDialogTrigger asChild>
@@ -212,14 +317,22 @@ export default function ClientsPage() {
                                 </AlertDialog>
                             </div>
                         </CardHeader>
-                         <CardContent className="flex-grow">
-                             <div className="space-y-2">
+                         <CardContent className="flex-grow space-y-4">
+                             <div>
                                 <p className="text-sm text-muted-foreground line-clamp-3">
                                     {client.styleDescription || "No style description provided."}
                                  </p>
-                                 <div className="flex flex-wrap gap-1">
-                                    {client.brandKeywords.map(kw => <span key={kw} className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-full">{kw}</span>)}
-                                 </div>
+                             </div>
+                             <div className="space-y-2">
+                                 {client.startDate && client.completionDate && (
+                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                         <CalendarIcon className="h-4 w-4" />
+                                         <span>{format(new Date(client.startDate.seconds * 1000), 'MMM d, yyyy')} - {format(new Date(client.completionDate.seconds * 1000), 'MMM d, yyyy')}</span>
+                                     </div>
+                                 )}
+                             </div>
+                             <div className="flex flex-wrap gap-1">
+                                {client.brandKeywords.map(kw => <span key={kw} className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-full">{kw}</span>)}
                              </div>
                         </CardContent>
                         <CardContent>

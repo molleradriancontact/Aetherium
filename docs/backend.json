@@ -258,7 +258,10 @@
         "name": { "type": "string" },
         "styleDescription": { "type": "string" },
         "brandKeywords": { "type": "array", "items": { "type": "string" } },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "startDate": { "type": "string", "format": "date-time", "description": "The start date for the client's job." },
+        "completionDate": { "type": "string", "format": "date-time", "description": "The target completion date for the client's job." },
+        "status": { "type": "string", "enum": ["Not Started", "In Progress", "Completed", "On Hold"], "description": "The current status of the client's job." }
       },
       "required": ["id", "designerId", "name", "createdAt"]
     }

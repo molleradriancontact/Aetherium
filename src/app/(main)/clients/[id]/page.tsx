@@ -3,22 +3,50 @@
 
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFirebase, useMemoFirebase } from "@/firebase";
+import { useFirebase, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2, WandSparkles, Image as ImageIcon } from "lucide-react";
+import { Loader2, WandSparkles, Image as ImageIcon, CalendarIcon, Save } from "lucide-react";
 import { doc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useTransition } from "react";
 import { generateDesignIdeas, DesignIdea } from "@/ai/flows/generate-design-ideas";
 import Image from "next/image";
+import { format } from "date-fns";
+import { useForm, Controller } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+
+const timelineSchema = z.object({
+  status: z.string().optional(),
+  startDate: z.date().optional(),
+  completionDate: z.date().optional(),
+});
+type TimelineFormValues = z.infer<typeof timelineSchema>;
 
 interface Client {
     id: string;
     name: string;
     styleDescription: string;
     brandKeywords: string[];
+    startDate?: any;
+    completionDate?: any;
+    status?: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold';
 }
+
+const statusColors = {
+    "Not Started": "bg-gray-500",
+    "In Progress": "bg-blue-500",
+    "Completed": "bg-green-500",
+    "On Hold": "bg-yellow-500",
+} as const;
+
 
 export default function ClientDetailPage({ params }: { params: { id: string } }) {
     const { user, firestore } = useFirebase();
@@ -32,6 +60,20 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
     }, [user, firestore, params.id]);
 
     const { data: client, isLoading } = useDoc<Client>(clientDocRef);
+
+    const { control, handleSubmit, formState: { isSubmitting }, setValue } = useForm<TimelineFormValues>({
+        resolver: zodResolver(timelineSchema),
+    });
+
+    useState(() => {
+        if (client) {
+            setValue('status', client.status);
+            if (client.startDate) setValue('startDate', new Date(client.startDate.seconds * 1000));
+            if (client.completionDate) setValue('completionDate', new Date(client.completionDate.seconds * 1000));
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [client, setValue]);
+
 
     const handleGenerateIdeas = async () => {
         if (!client) return;
@@ -51,6 +93,12 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
             }
         });
     };
+
+    const handleUpdateTimeline = (data: TimelineFormValues) => {
+        if (!clientDocRef) return;
+        setDocumentNonBlocking(clientDocRef, data, { merge: true });
+        toast({ title: "Timeline Updated", description: "The client's timeline has been saved."});
+    }
 
     if (isLoading) {
         return (
@@ -85,7 +133,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                                 <h4 className="font-semibold text-sm">Brand Keywords</h4>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {client.brandKeywords.length > 0 ? client.brandKeywords.map(kw => (
-                                        <span key={kw} className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-full">{kw}</span>
+                                        <Badge key={kw} variant="secondary">{kw}</Badge>
                                     )) : <p className="text-sm text-muted-foreground">No keywords provided.</p>}
                                 </div>
                             </div>
@@ -95,6 +143,91 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                                     {client.styleDescription || "No style description provided."}
                                 </p>
                             </div>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Job Timeline</CardTitle>
+                            <CardDescription>Manage the status and dates for this client's job.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleSubmit(handleUpdateTimeline)} className="space-y-4">
+                                <div>
+                                    <Label>Status</Label>
+                                     <Controller
+                                        name="status"
+                                        control={control}
+                                        defaultValue={client.status || "Not Started"}
+                                        render={({ field }) => (
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Not Started">Not Started</SelectItem>
+                                                    <SelectItem value="In Progress">In Progress</SelectItem>
+                                                    <SelectItem value="Completed">Completed</SelectItem>
+                                                    <SelectItem value="On Hold">On Hold</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                         <Label>Start Date</Label>
+                                         <Controller
+                                            name="startDate"
+                                            control={control}
+                                            defaultValue={client.startDate ? new Date(client.startDate.seconds * 1000) : undefined}
+                                            render={({ field }) => (
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button
+                                                        variant={"outline"}
+                                                        className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
+                                                        >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0">
+                                                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            )}
+                                        />
+                                    </div>
+                                     <div>
+                                         <Label>End Date</Label>
+                                         <Controller
+                                            name="completionDate"
+                                            control={control}
+                                            defaultValue={client.completionDate ? new Date(client.completionDate.seconds * 1000) : undefined}
+                                            render={({ field }) => (
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button
+                                                        variant={"outline"}
+                                                        className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
+                                                        >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0">
+                                                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            )}
+                                        />
+                                    </div>
+                                </div>
+                                 <Button type="submit" disabled={isSubmitting} className="w-full">
+                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                    Save Timeline
+                                </Button>
+                            </form>
                         </CardContent>
                     </Card>
                     <Button onClick={handleGenerateIdeas} disabled={isGenerating} className="w-full">
