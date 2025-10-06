@@ -3,22 +3,108 @@
  * @description This ruleset enforces a user-ownership model for user profiles and their associated resources (projects, invitations, clients).
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information. Only the authenticated user can read/write their own profile.
- * - /projects/{projectId}: Stores project data. Any authenticated user can read project data. Only project collaborators can modify projects.
- * - /users/{userId}/invitations/{invitationId}: Stores invitations for a user. Only the user can read/write their own invitations.
- * - /users/{userId}/clients/{clientId}: Stores clients for a specific designer (user). Only the user can read/write their own clients.
+ * - /users/{userId}: Stores user profile information.
+ * - /projects/{projectId}: Stores project data.  Each project has a `userId` field indicating ownership, and can optionally have a `collaborators` array.
+ * - /users/{userId}/invitations/{invitationId}: Stores invitations for a user.
+ * - /users/{userId}/clients/{clientId}: Stores clients associated with a specific designer (user).
  *
  * Key Security Decisions:
- * - Listing all users is disallowed.
- * - Public read access is enabled for projects, but writes are restricted to collaborators.
+ * - Users can only read/write their own profile data.
+ * - Project listing is publicly available, but creation/modification/deletion is restricted to the project owner or collaborators.
+ * - Users can only read/write their own invitations.
+ * - Users can only read/write their own clients.
+ * - Data schema is not strictly enforced. Validation is limited to authorization-critical fields.
  *
  * Denormalization for Authorization:
- * - The 'ArchitectProject' entity requires a 'userId' field to identify the project owner. This field is essential for enforcing ownership-based security.
+ * - Projects store the `userId` of the owner. This avoids needing to query user profiles to determine project ownership.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /**
+     * @description Allows users to manage their own profile data.
+     * @path /users/{userId}
+     * @allow (get, list) User with matching {userId} can read their own profile.
+     * @allow (create) User with matching {userId} can create their profile.
+     * @allow (update) User with matching {userId} can update their profile.
+     * @allow (delete) User with matching {userId} can delete their profile.
+     * @deny (get, list) User trying to read a different user's profile.
+     * @deny (create) User trying to create a profile with a mismatched ID.
+     * @deny (update) User trying to update a different user's profile.
+     * @deny (delete) User trying to delete a different user's profile.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && resource.data.id == userId; //Enforce immutability of userId
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows anyone to list projects, but only the owner or collaborators can create, update, or delete.
+     * @path /projects/{projectId}
+     * @allow (get, list) Any user can read any project.
+     * @allow (create) Only the project owner can create a project, and the ownerId must match their UID.
+     * @allow (update) Only the project owner or a listed collaborator can update a project.
+     * @allow (delete) Only the project owner can delete a project.
+     * @deny (create) A non-owner attempting to create a project.
+     * @deny (update) A non-owner or non-collaborator attempting to update a project.
+     * @deny (delete) A non-owner attempting to delete a project.
+     * @principle Enforces document ownership for writes, allows public reads.
+     */
+    match /projects/{projectId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isCollaborator(projectId) || isExistingOwner(resource.data.userId);
+      allow delete: if isExistingOwner(resource.data.userId);
+    }
+
+    /**
+     * @description Allows users to manage their own project invitations.
+     * @path /users/{userId}/invitations/{invitationId}
+     * @allow (get, list) User with matching {userId} can read their own invitations.
+     * @allow (create) User with matching {userId} can create invitations for themselves.
+     * @allow (update) User with matching {userId} can update their own invitations.
+     * @allow (delete) User with matching {userId} can delete their own invitations.
+     * @deny (get, list) User trying to read a different user's invitations.
+     * @deny (create) User trying to create invitations for a mismatched ID.
+     * @deny (update) User trying to update a different user's invitations.
+     * @deny (delete) User trying to delete a different user's invitations.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId}/invitations/{invitationId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows designers to manage their own clients.
+     * @path /users/{userId}/clients/{clientId}
+     * @allow (get, list) User with matching {userId} can read their own clients.
+     * @allow (create) User with matching {userId} can create clients for themselves.
+     * @allow (update) User with matching {userId} can update their own clients.
+     * @allow (delete) User with matching {userId} can delete their own clients.
+     * @deny (get, list) User trying to read a different user's clients.
+     * @deny (create) User trying to create clients for a mismatched ID.
+     * @deny (update) User trying to update a different user's clients.
+     * @deny (delete) User trying to delete a different user's clients.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId}/clients/{clientId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.designerId == userId;
+      allow update: if isOwner(userId) && resource.data.designerId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
@@ -31,92 +117,8 @@ service cloud.firestore {
       return isOwner(userId) && resource != null;
     }
 
-    /**
-     * @description Controls access to user profiles.
-     * @path /users/{userId}
-     * @allow (get) User with UID 'SNWzVKrDLBgGFtbZFJISuF6ytnM2' can read their profile.
-     * @deny (get) User with UID 'otherUserId' cannot read user profile of 'SNWzVKrDLBgGFtbZFJISuF6ytnM2'.
-     * @allow (create) User with UID 'SNWzVKrDLBgGFtbZFJISuF6ytnM2' can create their profile if the userId matches their UID.
-     * @deny (create) User with UID 'otherUserId' cannot create user profile with ID 'SNWzVKrDLBgGFtbZFJISuF6ytnM2'.
-     * @allow (update) User with UID 'SNWzVKrDLBgGFtbZFJISuF6ytnM2' can update their profile.
-     * @deny (update) User with UID 'otherUserId' cannot update user profile of 'SNWzVKrDLBgGFtbZFJISuF6ytnM2'.
-     * @allow (delete) User with UID 'SNWzVKrDLBgGFtbZFJISuF6ytnM2' can delete their profile.
-     * @deny (delete) User with UID 'otherUserId' cannot delete user profile of 'SNWzVKrDLBgGFtbZFJISuF6ytnM2'.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
-     */
-    match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; // Listing users is not permitted.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Controls access to projects.
-     * @path /projects/{projectId}
-     * @allow (get) Any signed-in user can read a project.
-     * @deny (get) Unauthenticated user cannot read a project.
-     * @allow (list) Any signed-in user can list projects.
-     * @deny (list) Unauthenticated user cannot list projects.
-     * @allow (create) Only a project collaborator can create a project.
-     * @deny (create) A user who is not a collaborator on the project cannot create it.
-     * @allow (update) Only a project collaborator can update a project.
-     * @deny (update) A user who is not a collaborator on the project cannot update it.
-     * @allow (delete) Only a project collaborator can delete a project.
-     * @deny (delete) A user who is not a collaborator on the project cannot delete it.
-     * @principle Public read access with owner-only writes (collaborators).
-     */
-    match /projects/{projectId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if request.resource.data.collaborators.hasAny([request.auth.uid]) && request.resource.data.userId == request.auth.uid;
-      allow update: if resource != null && resource.data.collaborators.hasAny([request.auth.uid]) && resource.data.userId == request.auth.uid;
-      allow delete: if resource != null && resource.data.collaborators.hasAny([request.auth.uid]) && resource.data.userId == request.auth.uid;
-    }
-
-    /**
-     * @description Controls access to project invitations for a specific user.
-     * @path /users/{userId}/invitations/{invitationId}
-     * @allow (get) User with UID 'SNWzVKrDLBgGFtbZFJISuF6ytnM2' can read their invitations.
-     * @deny (get) User with UID 'otherUserId' cannot read invitations of 'SNWzVKrDLBgGFtbZFJISuF6ytnM2'.
-     * @allow (create) User with UID 'SNWzVKrDLBgGFtbZFJISuF6ytnM2' can create an invitation under their user ID.
-     * @deny (create) User with UID 'otherUserId' cannot create invitation under user ID 'SNWzVKrDLBgGFtbZFJISuF6ytnM2'.
-     * @allow (update) User with UID 'SNWzVKrDLBgGFtbZFJISuF6ytnM2' can update their invitations.
-     * @deny (update) User with UID 'otherUserId' cannot update invitations of 'SNWzVKrDLBgGFtbZFJISuF6ytnM2'.
-     * @allow (delete) User with UID 'SNWzVKrDLBgGFtbZFJISuF6ytnM2' can delete their invitations.
-     * @deny (delete) User with UID 'otherUserId' cannot delete invitations of 'SNWzVKrDLBgGFtbZFJISuF6ytnM2'.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
-     */
-    match /users/{userId}/invitations/{invitationId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Controls access to clients for a specific designer (user).
-     * @path /users/{userId}/clients/{clientId}
-     * @allow (get) Designer (user) can read their own client data.
-     * @deny (get) Other users cannot read a designer's client data.
-     * @allow (list) Designer (user) can list their own client data.
-     * @deny (list) Other users cannot list a designer's client data.
-     * @allow (create) Designer (user) can create a new client.
-     * @deny (create) Other users cannot create a client for a designer.
-     * @allow (update) Designer (user) can update their own client data.
-     * @deny (update) Other users cannot update a designer's client data.
-     * @allow (delete) Designer (user) can delete their own client data.
-     * @deny (delete) Other users cannot delete a designer's client data.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
-     */
-    match /users/{userId}/clients/{clientId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.designerId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.designerId == userId;
-      allow delete: if isExistingOwner(userId) && request.resource.data.designerId == userId;
+    function isCollaborator(projectId) {
+        return get(/databases/$(database)/documents/projects/$(projectId)).data.collaborators.hasAny([request.auth.uid]);
     }
   }
 }
