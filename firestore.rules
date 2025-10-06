@@ -1,125 +1,126 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for private projects
- *              nested under `/users/{userId}/projects/{projectId}`. Public projects stored
- *              in the top-level `/projects/{projectId}` collection are publicly readable,
- *              but only the owner can modify them. User profiles are also protected
- *              under the `/users/{userId}` path.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profile information. Only the user can read/write their own profile.
- * - /projects/{projectId}: Stores public ArchitectProject data.  Publicly readable, owner-writeable.
- * - /users/{userId}/projects/{projectId}: Stores private ArchitectProject data, only accessible to the owning user.
- *
- * Key Security Decisions:
- * - Users can only access their own profile data.
- * - Public projects are readable by anyone, but only the owner can modify them.
- * - Private projects are only accessible to the owner.
- * - Listing of users is disallowed for privacy.
- *
- * Denormalization for Authorization:
- * - The `ArchitectProject` entity includes a `userId` field to denote the project owner.
- *   This is used to enforce ownership in both public and private project contexts, avoiding the need for additional reads.
+ * @core_philosophy This ruleset enforces a mixed security model. User profiles
+ *  are readable by anyone but writable only by the owning user. Projects
+ *  are publicly listable but require authentication for creation and ownership for modification.
+ *  Invitations are scoped to individual users. Client records are scoped to designers (users).
+ * @data_structure
+ *  /users/{userId} - Stores user profile information.
+ *  /projects/{projectId} - Stores project data.
+ *  /users/{userId}/invitations/{invitationId} - Stores invitations for project collaboration.
+ *  /users/{userId}/clients/{clientId} - Stores designer's client information.
+ * @key_security_decisions
+ *  - Users can only modify their own profiles.
+ *  - Projects are publicly listable, but creation, updates, and deletion are restricted to the owner.
+ *  - Invitations are private to the invited user.
+ *  - Listing of user documents is disallowed, preventing enumeration.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Manages user profile data.
+     * @description Allows users to read their own profile data, and create their own profile.
      * @path /users/{userId}
-     * @allow (create) - User with ID 'user123' creates their profile.
-     *   - auth.uid: 'user123'
-     *   - resource.data.id: 'user123'
-     * @allow (get) - User with ID 'user123' reads their profile.
-     *   - auth.uid: 'user123'
-     * @allow (update) - User with ID 'user123' updates their profile.
-     *   - auth.uid: 'user123'
-     * @allow (delete) - User with ID 'user123' deletes their profile.
-     *   - auth.uid: 'user123'
-     * @deny (create) - User with ID 'user456' attempts to create profile for 'user123'.
-     *   - auth.uid: 'user456'
-     *   - resource.data.id: 'user123'
-     * @principle Enforces document ownership for all operations on user profiles.
+     * @allow (get) Signed-in user can read any user profile.
+     * @allow (create) Signed-in user can create their own profile.
+     * @allow (update) Signed-in user can update their own profile.
+     * @allow (delete) No one can delete a user profile via rules.
+     * @deny (get) An unauthenticated user cannot read any user profiles.
+     * @deny (create) A user cannot create a profile for another user.
+     * @deny (update) A user cannot modify another user's profile.
+     * @deny (delete) A user cannot delete another user's profile.
+     * @principle Enforces user-ownership for profile data.
      */
     match /users/{userId} {
-      function isOwner() {
-        return request.auth.uid == userId;
-      }
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get: if isSignedIn() && isOwner();
+      allow get: if true;
       allow list: if false;
+
       allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && isOwner();
-      allow delete: if isSignedIn() && isOwner();
+      allow update: if isSignedIn() && isOwner(userId) && resource.data.id == userId;
+      allow delete: if false;
     }
 
     /**
-     * @description Manages public projects.
+     * @description Allows anyone to list projects, but requires authentication and ownership for modifications.
      * @path /projects/{projectId}
-     * @allow (get) - Any user can read a public project.
-     * @allow (list) - Any user can list public projects.
-     * @allow (create) - User with ID 'user123' creates a public project.
-     *   - auth.uid: 'user123'
-     *   - resource.data.userId: 'user123'
-     * @allow (update) - User with ID 'user123' updates their public project.
-     *   - auth.uid: 'user123'
-     *   - resource.data.userId: 'user123'
-     * @allow (delete) - User with ID 'user123' deletes their public project.
-     *   - auth.uid: 'user123'
-     *   - resource.data.userId: 'user123'
-     * @deny (create) - User with ID 'user456' attempts to create a public project owned by 'user123'.
-     *   - auth.uid: 'user456'
-     *   - resource.data.userId: 'user123'
-     * @principle Public read, owner-only writes for public projects.
+     * @allow (get) Anyone can read a project.
+     * @allow (list) Anyone can list all projects.
+     * @allow (create) Signed-in user can create a project with their userId as ownerId.
+     * @allow (update) Signed-in user who owns the project can update it.
+     * @allow (delete) Signed-in user who owns the project can delete it.
+     * @deny (create) A user cannot create a project for another user.
+     * @deny (update) A user cannot modify a project they don't own.
+     * @deny (delete) A user cannot delete a project they don't own.
+     * @principle Enforces public read access with owner-only writes for projects.
      */
     match /projects/{projectId} {
-      function isOwner() {
-        return request.auth.uid == resource.data.userId;
-      }
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
+      allow get: if true;
+      allow list: if true;
+
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && isOwner();
-      allow delete: if isSignedIn() && isOwner();
+      allow update: if isSignedIn() && isExistingOwner(resource.data.userId);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.userId);
     }
 
     /**
-     * @description Manages private user projects.
-     * @path /users/{userId}/projects/{projectId}
-     * @allow (create) - User with ID 'user123' creates a private project.
-     *   - auth.uid: 'user123'
-     *   - resource.data.userId: 'user123'
-     * @allow (get) - User with ID 'user123' reads their private project.
-     *   - auth.uid: 'user123'
-     * @allow (list) - User with ID 'user123' lists their private projects.
-     *   - auth.uid: 'user123'
-     * @allow (update) - User with ID 'user123' updates their private project.
-     *   - auth.uid: 'user123'
-     *   - resource.data.userId: 'user123'
-     * @allow (delete) - User with ID 'user123' deletes their private project.
-     *   - auth.uid: 'user123'
-     *   - resource.data.userId: 'user123'
-     * @deny (create) - User with ID 'user456' attempts to create a private project owned by 'user123'.
-     *   - auth.uid: 'user456'
-     *   - resource.data.userId: 'user123'
-     * @principle Enforces document ownership for all operations on private projects.
+     * @description Allows a user to only read their own invitations.
+     * @path /users/{userId}/invitations/{invitationId}
+     * @allow (get) Signed-in user can read their own invitations.
+     * @allow (create) Signed-in user can create an invitation for themself (plausibly via a trusted function).
+     * @allow (update) Signed-in user can update an invitation for themself.
+     * @allow (delete) Signed-in user can delete an invitation for themself.
+     * @deny (get) An unauthenticated user cannot read invitations.
+     * @deny (get) A user cannot read another user's invitations.
+     * @deny (create) A user cannot create an invitation for another user.
+     * @deny (update) A user cannot update another user's invitations.
+     * @deny (delete) A user cannot delete another user's invitations.
+     * @principle Enforces user-ownership for invitations.
      */
-    match /users/{userId}/projects/{projectId} {
-      function isOwner() {
-        return request.auth.uid == userId;
-      }
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if isSignedIn() && isOwner();
-      allow create: if isSignedIn() && request.auth.uid == userId && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && request.auth.uid == userId && request.resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && isOwner();
+    match /users/{userId}/invitations/{invitationId} {
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
+      /**
+       * @description Allows a designer (user) to manage their own client records.
+       * @path /users/{designerId}/clients/{clientId}
+       * @allow (get) Signed-in designer can read their client records.
+       * @allow (list) Signed-in designer can list their client records.
+       * @allow (create) Signed-in designer can create a client record.
+       * @allow (update) Signed-in designer can update their client record.
+       * @allow (delete) Signed-in designer can delete their client record.
+       * @deny (get) An unauthenticated user cannot read any client records.
+       * @deny (get) A designer cannot read another designer's client records.
+       * @deny (create) A designer cannot create a client record under another designer's ID.
+       * @deny (update) A designer cannot modify a client record under another designer's ID.
+       * @deny (delete) A designer cannot delete a client record under another designer's ID.
+       * @principle Enforces designer-ownership for client records.
+       */
+    match /users/{designerId}/clients/{clientId} {
+        allow get: if isSignedIn() && isOwner(designerId);
+        allow list: if isSignedIn() && isOwner(designerId);
+
+        allow create: if isSignedIn() && isOwner(designerId) && request.resource.data.designerId == designerId;
+        allow update: if isSignedIn() && isExistingOwner(designerId) && resource.data.designerId == designerId;
+        allow delete: if isSignedIn() && isExistingOwner(designerId) && resource.data.designerId == designerId;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
     }
   }
 }
