@@ -5,7 +5,6 @@ import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, setPersistence, inMemoryPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 import { DependencyList, useMemo } from 'react';
 
 let app: FirebaseApp;
@@ -34,23 +33,17 @@ export function initializeFirebase() {
   return getSdks();
 }
 
+/**
+ * Returns server-safe SDK instances.
+ * Analytics is client-only and should be initialized in a client component.
+ */
 export function getSdks() {
   ensureFirebaseInitialized();
   const services = {
     firebaseApp: app,
     auth: getAuth(app),
     firestore: getFirestore(app),
-    analytics: undefined,
   };
-
-  if (typeof window !== 'undefined') {
-    isAnalyticsSupported().then(supported => {
-        if (supported) {
-            (services as any).analytics = getAnalytics(app);
-        }
-    });
-  }
-
   return services;
 }
 

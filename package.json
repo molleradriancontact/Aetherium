@@ -59,8 +59,7 @@
     "wav": "^1.0.2",
     "zod": "^3.24.2",
     "@genkit-ai/firebase": "latest",
-    "@genkit-ai/google-genai": "latest",
-    "@firebase/analytics": "latest"
+    "@genkit-ai/google-genai": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",
