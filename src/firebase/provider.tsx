@@ -9,7 +9,7 @@ import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useToast } from '@/hooks/use-toast';
 import { Analytics } from 'firebase/analytics';
-import type { Crashlytics } from '@firebase/crashlytics';
+import type { Crashlytics } from 'firebase/crashlytics';
 
 
 interface FirebaseProviderProps {
@@ -78,7 +78,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   useEffect(() => {
     if (firebaseApp) {
-      import('@firebase/crashlytics').then(({ getCrashlytics, isSupported }) => {
+      import('firebase/crashlytics').then(({ getCrashlytics, isSupported }) => {
         isSupported().then((supported) => {
           if (supported) {
             setCrashlytics(getCrashlytics(firebaseApp));
