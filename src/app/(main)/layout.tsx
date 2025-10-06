@@ -15,6 +15,7 @@ import {
   SidebarInset,
   SidebarFooter,
   SidebarContent,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,7 +32,6 @@ import {
   BrainCircuit,
   Search,
   Film,
-  Clapperboard,
   BookOpen,
   Mail,
   HeartPulse,
@@ -58,25 +58,35 @@ const sourceCodePro = Source_Code_Pro({
   variable: '--font-source-code-pro',
 });
 
-const navItems = [
+const coreNav = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/projects', label: 'Projects', icon: LayoutGrid },
-  { href: '/clients', label: 'Clients', icon: Contact },
+];
+
+const creativeNav = [
+    { href: '/clients', label: 'Clients', icon: Contact },
+    { href: '/generative-media', label: 'Generative Media', icon: Film },
+    { href: '/studio', label: 'Studio', icon: Palette },
+];
+
+const architectNav = [
+  { href: '/prototype', label: 'Prototype', icon: FlaskConical },
   { href: '/analysis', label: 'Analysis Report', icon: FileText },
   { href: '/frontend', label: 'Frontend', icon: Code },
   { href: '/backend', label: 'Backend', icon: Database },
-  { href: '/prototype', label: 'Prototype', icon: FlaskConical },
   { href: '/collaboration', label: 'Collaboration', icon: Users },
   { href: '/invitations', label: 'Invitations', icon: Mail },
   { href: '/synthesis', label: 'Synthesis', icon: BrainCircuit },
   { href: '/health-check', label: 'Health Check', icon: HeartPulse },
   { href: '/research', label: 'Deep Research', icon: Search },
-  { href: '/generative-media', label: 'Generative Media', icon: Film },
-  { href: '/studio', label: 'Studio', icon: Palette },
-  { href: '/history', label: 'History', icon: GitBranch },
-  { href: '/academy/about', label: 'About', icon: BookOpen },
-  { href: '/account', label: 'Account', icon: User },
 ];
+
+const footerNav = [
+    { href: '/history', label: 'History', icon: GitBranch },
+    { href: '/academy/about', label: 'About', icon: BookOpen },
+    { href: '/account', label: 'Account', icon: User },
+]
+
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -110,6 +120,23 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const renderNavItems = (items: typeof coreNav) => {
+    return items.map(item => (
+        <SidebarMenuItem key={item.href}>
+        <SidebarMenuButton
+            asChild
+            isActive={pathname === item.href}
+            tooltip={{ children: item.label }}
+        >
+            <Link href={item.href}>
+            <item.icon />
+            <span>{item.label}</span>
+            </Link>
+        </SidebarMenuButton>
+        </SidebarMenuItem>
+    ));
+  }
+
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
@@ -126,23 +153,17 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
             <SidebarMenu className="p-2">
-            {navItems.map(item => (
-                <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href}
-                    tooltip={{ children: item.label }}
-                >
-                    <Link href={item.href}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                    </Link>
-                </SidebarMenuButton>
-                </SidebarMenuItem>
-            ))}
+                {renderNavItems(coreNav)}
+                <SidebarSeparator className="my-2" />
+                {renderNavItems(creativeNav)}
+                <SidebarSeparator className="my-2" />
+                {renderNavItems(architectNav)}
             </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
+             <SidebarMenu className="p-2">
+                {renderNavItems(footerNav)}
+             </SidebarMenu>
             <Link href="/account" className="flex items-center gap-3 p-4 hover:bg-sidebar-accent rounded-md">
                 <Avatar className="h-8 w-8">
                     <AvatarImage src={user.photoURL ?? undefined} />
