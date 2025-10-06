@@ -76,13 +76,17 @@ export default function ProjectsPage() {
                 .filter(snap => snap.exists())
                 .map(snap => ({ ...snap.data(), id: snap.id, path: snap.ref.path } as ArchitectProject & {path: string}));
             
-            projects.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+            projects.sort((a, b) => {
+                if (!a.createdAt || !b.createdAt) return 0;
+                return b.createdAt.seconds - a.createdAt.seconds;
+            });
 
             setAllProjects(projects);
 
         } catch (error) {
             console.error("Error fetching projects:", error);
-            toast({ title: "Failed to load projects", variant: 'destructive'});
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            toast({ title: "Failed to load projects", description: errorMessage, variant: 'destructive'});
             setAllProjects([]);
         } finally {
             setIsLoadingProjects(false);
