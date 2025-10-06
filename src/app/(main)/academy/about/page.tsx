@@ -17,7 +17,7 @@ const personas = [
   {
     icon: Palette,
     title: "The Graphic or UI/UX Designer",
-    description: "A creative professional focused on features and user experience. They can upload design mockups, user stories, or requirement documents. The AI helps bridge the gap between vision and engineering by generating high-level plans and even clickable UI prototypes. They also use the generative media tools to create unique marketing assets and explore visual concepts."
+    description: "A creative professional focused on features and user experience. They use the app to generate design concepts for clients, create unique marketing assets with generative media tools, and transform their mockups into high-level plans or even clickable UI prototypes."
   },
   {
     icon: Rocket,
@@ -63,9 +63,9 @@ const accessPoints = [
         description: "Use text prompts to generate unique images and videos with AI, perfect for creating marketing assets, blog headers, or social media content."
     },
     {
-        icon: Video,
+        icon: Palette,
         title: "Media Studio Modification (/studio)",
-        description: "Upload an existing video and provide the AI with text prompts to modify its style, color, or add effects, repurposing content with ease."
+        description: "Upload an existing image and provide the AI with text prompts to modify its style, color, or add effects, repurposing content with ease."
     }
 ];
 

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -35,6 +36,7 @@ import {
   Mail,
   HeartPulse,
   Contact,
+  Palette,
 } from 'lucide-react';
 import { useAppState } from '@/hooks/use-app-state';
 import { useFirebase } from '@/firebase';
@@ -70,7 +72,7 @@ const navItems = [
   { href: '/health-check', label: 'Health Check', icon: HeartPulse },
   { href: '/research', label: 'Deep Research', icon: Search },
   { href: '/generative-media', label: 'Generative Media', icon: Film },
-  { href: '/studio', label: 'Studio', icon: Clapperboard },
+  { href: '/studio', label: 'Studio', icon: Palette },
   { href: '/history', label: 'History', icon: GitBranch },
   { href: '/academy/about', label: 'About', icon: BookOpen },
   { href: '/account', label: 'Account', icon: User },

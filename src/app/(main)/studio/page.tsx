@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useTransition, useCallback } from "react";
-import { modifyVideo } from "@/ai/flows/modify-video-flow";
-import { Video, WandSparkles, Loader2, UploadCloud } from "lucide-react";
+import { modifyImage } from "@/ai/flows/modify-image-flow";
+import { Image as ImageIcon, WandSparkles, Loader2, UploadCloud } from "lucide-react";
 import { useDropzone, FileWithPath } from 'react-dropzone';
+import Image from "next/image";
 
 const readFileAsDataURL = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -24,8 +25,8 @@ export default function StudioPage() {
   const { toast } = useToast();
   
   const [prompt, setPrompt] = useState('');
-  const [sourceVideo, setSourceVideo] = useState<string | null>(null);
-  const [modifiedVideo, setModifiedVideo] = useState<string | null>(null);
+  const [sourceImage, setSourceImage] = useState<string | null>(null);
+  const [modifiedImage, setModifiedImage] = useState<string | null>(null);
 
   const [isModifying, startModification] = useTransition();
 
@@ -34,42 +35,42 @@ export default function StudioPage() {
         return;
     }
     const file = acceptedFiles[0];
-    if (!file.type.startsWith('video/')) {
-        toast({ title: "Invalid File Type", description: "Please upload a video file.", variant: "destructive" });
+    if (!file.type.startsWith('image/')) {
+        toast({ title: "Invalid File Type", description: "Please upload an image file (PNG, JPG, etc.).", variant: "destructive" });
         return;
     }
     readFileAsDataURL(file).then(dataUrl => {
-        setSourceVideo(dataUrl);
-        setModifiedVideo(null);
+        setSourceImage(dataUrl);
+        setModifiedImage(null);
     });
   }, [toast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     multiple: false,
-    accept: { 'video/*': [] },
+    accept: { 'image/*': [] },
   });
 
 
-  const handleModifyVideo = () => {
+  const handleModifyImage = () => {
     if (!prompt) {
-      toast({ title: "Prompt is required", description: "Please enter a prompt to modify the video.", variant: "destructive" });
+      toast({ title: "Prompt is required", description: "Please enter a prompt to modify the image.", variant: "destructive" });
       return;
     }
-    if (!sourceVideo) {
-        toast({ title: "Source video required", description: "Please upload a video to modify.", variant: "destructive" });
+    if (!sourceImage) {
+        toast({ title: "Source image required", description: "Please upload an image to modify.", variant: "destructive" });
         return;
     }
 
-    setModifiedVideo(null);
+    setModifiedImage(null);
     startModification(async () => {
       try {
-        const result = await modifyVideo({ videoDataUri: sourceVideo, prompt });
-        setModifiedVideo(result.videoDataUri);
-        toast({ title: "Video Modified", description: "Your video has been successfully modified." });
+        const result = await modifyImage({ imageDataUri: sourceImage, prompt });
+        setModifiedImage(result.imageDataUri);
+        toast({ title: "Image Modified", description: "Your image has been successfully modified." });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-        toast({ title: "Video Modification Failed", description: errorMessage, variant: "destructive" });
+        toast({ title: "Image Modification Failed", description: errorMessage, variant: "destructive" });
       }
     });
   };
@@ -78,28 +79,28 @@ export default function StudioPage() {
     <div className="space-y-8">
       <PageHeader
         title="Media Studio"
-        subtitle="Use AI to edit and transform your video content for marketing or creative projects."
+        subtitle="Use AI to edit and transform your images for marketing or creative projects."
       />
 
       <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><WandSparkles /> AI Video Modifier</CardTitle>
-            <CardDescription>Upload a video and use a text prompt to modify its style, color, or add effects.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><WandSparkles /> AI Image Modifier</CardTitle>
+            <CardDescription>Upload an image and use a text prompt to modify its style, color, or content.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
                 <div 
                     {...getRootProps()}
-                    className={`relative flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors aspect-video ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'} ${isModifying ? 'pointer-events-none opacity-50' : ''}`}
+                    className={`relative flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors aspect-video bg-muted/50 ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'} ${isModifying ? 'pointer-events-none opacity-50' : ''}`}
                 >
                     <input {...getInputProps()} disabled={isModifying} />
-                    {sourceVideo ? (
-                         <video src={sourceVideo} controls muted loop className="w-full h-full rounded-md object-contain absolute inset-0"/>
+                    {sourceImage ? (
+                         <Image src={sourceImage} alt="Source image" fill sizes="(max-width: 768px) 100vw, 50vw" className="rounded-md object-contain" />
                     ): (
                         <div className="text-center text-muted-foreground">
                             <UploadCloud className="mx-auto h-12 w-12" />
-                            <p className="mt-2">Drag & drop a video here, or click to select</p>
+                            <p className="mt-2">Drag & drop an image here, or click to select</p>
                         </div>
                     )}
                 </div>
@@ -108,16 +109,14 @@ export default function StudioPage() {
                     {isModifying ? (
                         <div className="text-center text-muted-foreground">
                             <Loader2 className="h-10 w-10 mx-auto text-primary animate-spin" />
-                            <p className="mt-2 text-sm">AI is modifying the video...</p>
+                            <p className="mt-2 text-sm">AI is modifying the image...</p>
                         </div>
-                    ) : modifiedVideo ? (
-                        <video src={modifiedVideo} controls autoPlay muted loop className="w-full h-full rounded-md object-contain">
-                            Your browser does not support the video tag.
-                        </video>
+                    ) : modifiedImage ? (
+                         <Image src={modifiedImage} alt="Modified image" fill sizes="(max-width: 768px) 100vw, 50vw" className="rounded-md object-contain" />
                     ) : (
                        <div className="text-center text-muted-foreground">
-                            <Video className="h-16 w-16 mx-auto" />
-                            <p className="mt-2 text-sm">Your modified video will appear here.</p>
+                            <ImageIcon className="h-16 w-16 mx-auto" />
+                            <p className="mt-2 text-sm">Your modified image will appear here.</p>
                        </div>
                     )}
                 </div>
@@ -127,12 +126,12 @@ export default function StudioPage() {
               <Input
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="e.g., 'make the sky purple' or 'turn this into a comic book style'"
-                disabled={isModifying || !sourceVideo}
+                placeholder="e.g., 'make the background blue' or 'turn this into a comic book style'"
+                disabled={isModifying || !sourceImage}
               />
-              <Button onClick={handleModifyVideo} disabled={isModifying || !sourceVideo || !prompt} className="w-full">
+              <Button onClick={handleModifyImage} disabled={isModifying || !sourceImage || !prompt} className="w-full">
                 {isModifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}
-                {isModifying ? 'Modifying...' : 'Modify Video'}
+                {isModifying ? 'Modifying...' : 'Modify Image'}
               </Button>
             </div>
           </CardContent>
