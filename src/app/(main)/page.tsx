@@ -1,14 +1,14 @@
+
 'use client';
 
 import { PageHeader } from "@/components/page-header";
 import { useAppState } from "@/hooks/use-app-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { ArrowRight, FileText, Code, Database, Loader2, LayoutGrid } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ProjectChatInterface } from "@/components/project-chat-interface";
 import { WelcomeCard } from "@/components/welcome-card";
 import { ProjectActivityFeed } from "@/components/project-activity-feed";
+import { InfoAccordion } from "@/components/info-accordion";
 
 export default function HomePage() {
   const { isHydrated, analysisReport, frontendSuggestions, backendSuggestions, detailedStatus, projectName } = useAppState();
@@ -36,61 +36,20 @@ export default function HomePage() {
                 <ProjectChatInterface />
             </div>
             <div className="space-y-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Project Overview</CardTitle>
+                        <CardDescription>A summary of your project's analysis and suggestions.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <InfoAccordion 
+                            analysisReport={analysisReport}
+                            frontendSuggestions={frontendSuggestions}
+                            backendSuggestions={backendSuggestions}
+                        />
+                    </CardContent>
+                </Card>
                 <ProjectActivityFeed />
-                <Card>
-                    <CardHeader className="flex flex-row items-start justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Analysis Report</CardTitle>
-                        <FileText className="h-5 w-5 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        {analysisReport ? (
-                             <p className="text-xs text-muted-foreground mb-4 line-clamp-3">
-                                {analysisReport}
-                            </p>
-                        ) : (
-                            <p className="text-xs text-muted-foreground mb-4">A comprehensive overview of your codebase.</p>
-                        )}
-                        <Link href="/analysis">
-                            <Button>View Report <ArrowRight className="ml-2 h-4 w-4" /></Button>
-                        </Link>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-start justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Frontend Suggestions</CardTitle>
-                        <Code className="h-5 w-5 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                         {frontendSuggestions?.suggestedChanges ? (
-                             <p className="text-xs text-muted-foreground mb-4 line-clamp-3">
-                                {frontendSuggestions.suggestedChanges}
-                            </p>
-                        ) : (
-                            <p className="text-xs text-muted-foreground mb-4">AI-powered recommendations for your UI.</p>
-                        )}
-                        <Link href="/frontend">
-                            <Button variant="secondary">View Suggestions</Button>
-                        </Link>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-start justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Backend Suggestions</CardTitle>
-                        <Database className="h-5 w-5 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                         {backendSuggestions?.suggestedChanges ? (
-                             <p className="text-xs text-muted-foreground mb-4 line-clamp-3">
-                                {backendSuggestions.suggestedChanges}
-                            </p>
-                        ) : (
-                            <p className="text-xs text-muted-foreground mb-4">Optimize your server-side logic and a rchitecture.</p>
-                        )}
-                        <Link href="/backend">
-                            <Button variant="secondary">View Suggestions</Button>
-                        </Link>
-                    </CardContent>
-                </Card>
             </div>
         </div>
       )}
