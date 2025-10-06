@@ -1,7 +1,7 @@
 
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Code, Presentation, Rocket, MessageSquare, FileUp, FolderKanban, Search, WandSparkles, Bot, Image as ImageIcon, Video } from "lucide-react";
+import { Briefcase, Code, Presentation, Rocket, MessageSquare, FileUp, FolderKanban, Search, WandSparkles, Bot, Image as ImageIcon, Video, Palette } from "lucide-react";
 
 const personas = [
   {
@@ -15,9 +15,9 @@ const personas = [
     description: "A hands-on developer looking for an AI partner to accelerate their workflow. They use the app to refactor components, generate boilerplate code from business logic, and get intelligent suggestions to solve implementation challenges."
   },
   {
-    icon: Presentation,
-    title: "The Product Manager / Designer",
-    description: "A less technical user focused on features and user experience. They can upload design mockups, user stories, or requirement documents. The AI helps bridge the gap between vision and engineering by generating high-level plans and even clickable UI prototypes."
+    icon: Palette,
+    title: "The Graphic or UI/UX Designer",
+    description: "A creative professional focused on features and user experience. They can upload design mockups, user stories, or requirement documents. The AI helps bridge the gap between vision and engineering by generating high-level plans and even clickable UI prototypes. They also use the generative media tools to create unique marketing assets and explore visual concepts."
   },
   {
     icon: Rocket,

@@ -18,7 +18,8 @@ interface FirebaseProviderProps {
   firestore: Firestore;
   auth: Auth;
   storage: FirebaseStorage;
-  analytics?: Analytics;
+  analytics?: Analytics | null;
+  crashlytics?: Crashlytics | null;
 }
 
 interface UserAuthState {
@@ -67,6 +68,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   auth,
   storage,
   analytics,
+  crashlytics,
 }) => {
   const { toast } = useToast();
   const [userAuthState, setUserAuthState] = useState<UserAuthState>({
@@ -74,21 +76,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     isUserLoading: true,
     userError: null,
   });
-  const [crashlytics, setCrashlytics] = useState<Crashlytics | null>(null);
-
-  useEffect(() => {
-    if (firebaseApp) {
-      import('firebase/crashlytics').then(({ getCrashlytics, isSupported }) => {
-        isSupported().then((supported) => {
-          if (supported) {
-            setCrashlytics(getCrashlytics(firebaseApp));
-          }
-        });
-      }).catch(err => {
-        console.error("Failed to load Firebase Crashlytics", err);
-      });
-    }
-  }, [firebaseApp]);
 
   // Intercept fetch to add the Authorization header
     useEffect(() => {
