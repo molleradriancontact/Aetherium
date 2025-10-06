@@ -5,7 +5,8 @@ import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, setPersistence, inMemoryPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getAnalytics, isSupported } from 'firebase/analytics';
+import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
+import { getCrashlytics } from "firebase/crashlytics";
 import { DependencyList, useMemo } from 'react';
 
 let app: FirebaseApp;
@@ -41,12 +42,14 @@ export function getSdks() {
     auth: getAuth(app),
     firestore: getFirestore(app),
     analytics: undefined,
+    crashlytics: undefined,
   };
 
   if (typeof window !== 'undefined') {
-    isSupported().then(supported => {
+    isAnalyticsSupported().then(supported => {
         if (supported) {
             (services as any).analytics = getAnalytics(app);
+            (services as any).crashlytics = getCrashlytics(app);
         }
     });
   }

@@ -9,6 +9,7 @@ import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { useToast } from '@/hooks/use-toast';
 import { Analytics } from 'firebase/analytics';
+import { Crashlytics } from 'firebase/crashlytics';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ interface FirebaseProviderProps {
   auth: Auth;
   storage: FirebaseStorage;
   analytics?: Analytics;
+  crashlytics?: Crashlytics;
 }
 
 interface UserAuthState {
@@ -32,6 +34,7 @@ export interface FirebaseContextState {
   auth: Auth | null;
   storage: FirebaseStorage | null;
   analytics?: Analytics | null;
+  crashlytics?: Crashlytics | null;
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
@@ -43,6 +46,7 @@ export interface FirebaseServicesAndUser {
   auth: Auth;
   storage: FirebaseStorage;
   analytics?: Analytics;
+  crashlytics?: Crashlytics;
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
@@ -63,6 +67,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   auth,
   storage,
   analytics,
+  crashlytics,
 }) => {
   const { toast } = useToast();
   const [userAuthState, setUserAuthState] = useState<UserAuthState>({
@@ -133,11 +138,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       auth: servicesAvailable ? auth : null,
       storage: servicesAvailable ? storage : null,
       analytics: servicesAvailable ? analytics : null,
+      crashlytics: servicesAvailable ? crashlytics : null,
       user: userAuthState.user,
       isUserLoading: userAuthState.isUserLoading,
       userError: userAuthState.userError,
     };
-  }, [firebaseApp, firestore, auth, storage, analytics, userAuthState]);
+  }, [firebaseApp, firestore, auth, storage, analytics, crashlytics, userAuthState]);
 
   return (
     <FirebaseContext.Provider value={contextValue}>
@@ -164,6 +170,7 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     auth: context.auth,
     storage: context.storage,
     analytics: context.analytics ?? undefined,
+    crashlytics: context.crashlytics ?? undefined,
     user: context.user,
     isUserLoading: context.isUserLoading,
     userError: context.userError,
